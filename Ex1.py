@@ -8,7 +8,7 @@ def flip(bin_num):
 
 
 class LifeGame:
-    def __init__(self, size=8, live_prob=0.5, wraparound=False):
+    def __init__(self, size=8, live_prob=0.5, wraparound=False, seed=None):
         if size % 2 != 0:
             raise ValueError("Please input even number N")
         self.size = size
@@ -16,6 +16,7 @@ class LifeGame:
         self.wraparound = wraparound
         self.step_counter = 0
         # generate initial state
+        np.random.seed(seed)
         self.state = np.random.random(size=(size, size))
         self.state[self.state < live_prob] = 0
         self.state[self.state >= live_prob] = 1
@@ -87,16 +88,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='Ex1Bio',
         description='Executes the Ex1 program')
-    parser.add_argument('-n', '--size', default=100, type=int, help='size of grid')
+    parser.add_argument('-n', '--size', default=100, type=int, help='size of grid.')
     parser.add_argument('-s', '--steps', default=250, type=int,
-                        help='amount of steps for the experiment to last')
+                        help='amount of steps for the experiment to last.')
+    parser.add_argument('-r', '--seed', default=None, type=int,
+                        help='the seed to use for the random initialization.')
     parser.add_argument('-p', '--proba', default=0.5, type=float,
-                        help='probability for cell to be initialized with 1')
+                        help='probability for cell to be initialized with 1.')
     parser.add_argument('-w', '--wraparound', action='store_true', default=False,
-                        help='adds the wraparound condition')
+                        help='adds the wraparound condition.')
     parser.add_argument('-t', '--pausetime', default=1, type=float,
-                        help='the amount of screentime for each step')
+                        help='the amount of screentime for each step.')
     args = parser.parse_args()
 
-    lg = LifeGame(size=args.size, live_prob=args.proba, wraparound=args.wraparound)
+    lg = LifeGame(size=args.size, live_prob=args.proba, wraparound=args.wraparound, seed=args.seed)
     lg.play(args.steps, args.pausetime)
