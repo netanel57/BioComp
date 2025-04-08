@@ -10,7 +10,7 @@ def flip(bin_num):
 class LifeGame:
     def __init__(self, size=8, live_prob=0.5, wraparound=False):
         if size % 2 != 0:
-            raise ValueError("Please even number N")
+            raise ValueError("Please input even number N")
         self.size = size
         self.live_prob = live_prob
         self.wraparound = wraparound
@@ -87,12 +87,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='Ex1Bio',
         description='Executes the Ex1 program')
-    parser.add_argument('-n', '--size', default=100, type=int)
-    parser.add_argument('-s', '--steps', default=250, type=int)
-    parser.add_argument('-p', '--proba', default=0.5, type=float)
-    parser.add_argument('-w', '--wraparound', action='store_true', default=False)
-    parser.add_argument('-t', '--pausetime', default=1, type=int)
+    parser.add_argument('-n', '--size', default=100, type=int, help='size of grid')
+    parser.add_argument('-s', '--steps', default=250, type=int,
+                        help='amount of steps for the experiment to last')
+    parser.add_argument('-p', '--proba', default=0.5, type=float,
+                        help='probability for cell to be initialized with 1')
+    parser.add_argument('-w', '--wraparound', action='store_true', default=False,
+                        help='adds the wraparound condition')
+    parser.add_argument('-t', '--pausetime', default=1, type=float,
+                        help='the amount of screentime for each step')
     args = parser.parse_args()
-    print(args)
+
     lg = LifeGame(size=args.size, live_prob=args.proba, wraparound=args.wraparound)
-    lg.play(args.steps,args.pausetime)
+    lg.play(args.steps, args.pausetime)
