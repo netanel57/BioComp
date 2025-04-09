@@ -52,7 +52,7 @@ class LifeGame:
                     i + odd_mult, j + odd_mult]
                 self.rules(odd_mult, count, i, j)
 
-        # 🔍 Measure change
+        #  Measure change
         changed = np.sum(self.state != prev_state)
         percent_changed = (changed / self.state.size) * 100
         self.change_history.append(percent_changed)
