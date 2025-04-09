@@ -13,6 +13,11 @@ def flip(bin_num):
 class LifeGame:
     def __init__(self, size=8, live_prob=0.5, wraparound=False):
         self.change_history = []
+        self.live_ratio_history = []
+        self.entropy_history = []
+        self.first_stable_gen = None
+        self.STABILITY_THRESHOLD = 0.5  # % change to consider stable
+
         if size % 2 != 0:
             raise ValueError("Please even number N")
         self.size = size
@@ -23,6 +28,26 @@ class LifeGame:
         #Buttons
         self.paused = True
         self.started = False
+
+        self.speed_mode = "medium"
+        self.speed_map = {
+        "slow": 1000,
+        "medium": 300,
+        "fast": 50
+       }
+
+    def on_speed_toggle(self, event):
+        modes = list(self.speed_map.keys())
+        current_idx = modes.index(self.speed_mode)
+        next_idx = (current_idx + 1) % len(modes)
+        self.speed_mode = modes[next_idx]
+        new_interval = self.speed_map[self.speed_mode]
+        self.timer.stop()
+        self.timer = self.fig.canvas.new_timer(interval=new_interval)
+        self.timer.add_callback(self.update_frame)
+        self.timer.start()
+        self.btn_speed.label.set_text(f"Speed: {self.speed_mode.capitalize()}")
+        print(f"Speed set to {self.speed_mode} ({new_interval} ms/frame)")
 
     def on_start(self, event):
         if not self.started:
@@ -43,6 +68,8 @@ class LifeGame:
 
         self.started = True
         self.paused = False
+        if not self.timer.running:
+            self.timer.start()
 
     def on_pause(self, event):
         self.paused = not self.paused
@@ -55,9 +82,25 @@ class LifeGame:
         self.started = False
         self.step_counter = 0
         self.change_history = []
+        self.live_ratio_history = []
+        self.entropy_history = []
+        self.first_stable_gen = None
 
         if hasattr(self, 'state'):
             del self.state
+
+        if hasattr(self, 'timer') and self.timer.running:
+            self.timer.stop()
+
+        self.ax.clear()
+        self.ax.set_title("Click 'Start' to begin a new simulation")
+        self.fig.canvas.draw()
+
+        if hasattr(self, 'state'):
+            del self.state
+
+        if hasattr(self, 'timer') and self.timer.running:
+            self.timer.stop()
 
         self.ax.clear()
         self.ax.set_title("Click 'Start' to begin a new simulation")
@@ -98,6 +141,14 @@ class LifeGame:
         self.state[place1] = self.state[place2]
         self.state[place2] = tmp
 
+    def set_prob(self, prob):
+        self.live_prob = prob
+        print(f"Live probability set to {prob}")
+
+        if hasattr(self, 'prob_label'):
+            self.prob_label.set_text(f"Live Probability: {prob}")
+            self.fig.canvas.draw_idle()
+
     def update_frame(self):
         if not self.started or self.paused or self.step_counter >= self.max_steps:
             return
@@ -114,8 +165,29 @@ class LifeGame:
 
         prev = self.state.copy()
         self.step()  # update state
+
+        #Count live and dead
+        counts = np.bincount(self.state.astype(int).flatten(), minlength=2)
+        total = counts.sum()
+        p0, p1 = counts / total if total > 0 else (0, 0)
+
+        #  entropy
+        entropy = 0
+        if p0 > 0:
+            entropy -= p0 * np.log2(p0)
+        if p1 > 0:
+            entropy -= p1 * np.log2(p1)
+
+        self.entropy_history.append(entropy)
+        print(f"Gen {self.step_counter}: p1={p1:.3f}, p0={p0:.3f}, entropy={entropy:.4f}")
+
         changed = np.sum(self.state != prev)
         percent_change = (changed / self.state.size) * 100
+        if self.first_stable_gen is None and percent_change < self.STABILITY_THRESHOLD:
+            self.first_stable_gen = self.step_counter
+
+        live_ratio = np.sum(self.state) / self.state.size
+        self.live_ratio_history.append(live_ratio * 100)
         self.change_history.append(percent_change)
 
         # grid
@@ -137,12 +209,21 @@ class LifeGame:
 
     def show_stability_curve(self):
         fig, ax = plt.subplots()
-        ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
-        ax.plot(range(len(self.change_history)), self.change_history, label='Change % per step', color='blue')
+
+        generations = range(self.step_counter)  # Only up to current generation
+        ax.plot(generations, self.change_history[:self.step_counter], label='Δ % Cells', color='blue')
+        ax.plot(generations, self.live_ratio_history[:self.step_counter], label='Live Cell %', color='green')
+        ax.plot(generations, self.entropy_history[:self.step_counter], label='Entropy', color='orange')
+        if self.first_stable_gen is not None:
+            ax.axvline(self.first_stable_gen, color='gray', linestyle='--', label='Stabilization Point')
         ax.set_xlabel('Generation')
-        ax.set_ylabel('Percent of Changed Cells')
-        ax.set_title('Stability Curve')
+        ax.set_ylabel('Percent')
+        ax.set_title(f'Stability Curve ({self.step_counter} generations)')
         ax.grid(True)
+        print("\n--- Simulation Summary ---")
+        print(f"Stabilized at Generation: {self.first_stable_gen if self.first_stable_gen is not None else 'Never'}")
+        print(f"Stability Threshold: {self.STABILITY_THRESHOLD}%")
+
         ax.legend()
         plt.show()
 
@@ -152,6 +233,11 @@ class LifeGame:
         self.change_history = []
 
         self.fig, self.ax = plt.subplots()
+        self.prob_label = self.ax.text(
+            1, self.size - 3, "",
+            fontsize=10,
+            bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3'),
+        )
         plt.subplots_adjust(bottom=0.2)
 
         # Buttons    #  reminder -[left, bottom, width, height]
@@ -177,6 +263,23 @@ class LifeGame:
         ax_reset = plt.axes([0.85, 0.90, 0.1, 0.05])
         btn_reset = Button(ax_reset, 'Reset',color='red')
         btn_reset.on_clicked(self.on_reset)
+
+        ax_25 = plt.axes([0.92, 0.80, 0.1, 0.05])
+        btn_25 = Button(ax_25, 'Prob 0.25')
+        btn_25.on_clicked(lambda event: self.set_prob(0.25))
+
+        ax_50 = plt.axes([0.92, 0.72, 0.1, 0.05])
+        btn_50 = Button(ax_50, 'Prob 0.50')
+        btn_50.on_clicked(lambda event: self.set_prob(0.5))
+
+        ax_75 = plt.axes([0.92, 0.64, 0.1, 0.05])
+        btn_75 = Button(ax_75, 'Prob 0.75')
+        btn_75.on_clicked(lambda event: self.set_prob(0.75))
+
+        ax_speed = plt.axes([0.55, 0.90, 0.25, 0.05])
+        self.btn_speed = Button(ax_speed, 'Speed: Medium')
+        self.btn_speed.on_clicked(self.on_speed_toggle)
+        self.timer = self.fig.canvas.new_timer(interval=self.speed_map[self.speed_mode])
 
         # Text field for number of generations
         ax_gen = plt.axes([0.15, 0.90, 0.2, 0.05])
@@ -205,3 +308,4 @@ if __name__ == "__main__":
     print(args)
     lg = LifeGame(size=args.size, live_prob=args.proba, wraparound=args.wraparound)
     lg.play(args.steps,args.pausetime)
+
