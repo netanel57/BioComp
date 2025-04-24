@@ -13,8 +13,12 @@ class LifeGame:
     def __init__(self, size=8, live_prob=0.5, wraparound=False):
         self.change_history = []
         self.live_ratio_history = []
+        self.dead_zone_history = []
+        self.lifespan = None
+        self.avg_lifespan_history = []
+        self.max_lifespan_history = []
         self.first_stable_gen = None
-        self.STABILITY_THRESHOLD = 0.5  # % change to consider stable
+        self.STABILITY_THRESHOLD = 0.5  # %change to consider stable
 
         if size % 2 != 0:
             raise ValueError("Please even number N")
@@ -59,11 +63,11 @@ class LifeGame:
             except ValueError:
                 print("Invalid number of generations. Using default:", self.max_steps)
 
-            # Generate the initial grid
             self.state = np.random.random((self.size, self.size))
             self.state[self.state < self.live_prob] = 0
             self.state[self.state >= self.live_prob] = 1
 
+        self.lifespan = np.zeros((self.size, self.size))
         self.started = True
         self.paused = False
         self.timer.start()
@@ -123,6 +127,19 @@ class LifeGame:
         percent_changed = (changed / self.state.size) * 100
         self.change_history.append(percent_changed)
 
+        unchanged_cell=np.sum(self.state == prev_state)
+        deadzone_cell=np.sum(unchanged_cell/self.state.size)*100
+        self.dead_zone_history.append(deadzone_cell)
+    def show_dead_zone(self):
+        fig, ax = plt.subplots()
+        ax.plot(range(len(self.dead_zone_history)), self.dead_zone_history,label="Dead Zone",color="red")
+        ax.set_xlabel("Generation")
+        ax.set_ylabel("Dead Zone ratio")
+        ax.set_title("Dead Zone Ratio")
+        ax.grid(True)
+        ax.legend()
+        plt.show()
+
     def rules(self, odd_mult, count, i, j):
         if count != 2:
             self.state[i, j] = flip(self.state[i, j])
@@ -163,8 +180,15 @@ class LifeGame:
         prev = self.state.copy()
         self.step()  # update state
 
+        self.lifespan[self.state == 1] += 1  # Increase lifespan where cells are alive
+        self.lifespan[self.state == 0] = 0  # Reset lifespan where cells died
+        avg_life = np.mean(self.lifespan[self.state == 1]) if np.any(self.state == 1) else 0
+        max_life = np.max(self.lifespan)
 
+        self.avg_lifespan_history.append(avg_life)
+        self.max_lifespan_history.append(max_life)
 
+        # Change and live stats
         changed = np.sum(self.state != prev)
         percent_change = (changed / self.state.size) * 100
         if self.first_stable_gen is None and percent_change < self.STABILITY_THRESHOLD:
@@ -174,7 +198,7 @@ class LifeGame:
         self.live_ratio_history.append(live_ratio * 100)
         self.change_history.append(percent_change)
 
-        # grid
+        # Draw the grid
         self.ax.vlines(range(1, self.size, 2), 0, self.size, colors='r', linestyles='dashed', linewidth=0.5)
         self.ax.vlines(range(2, self.size, 2), 0, self.size, colors='blue', linestyles='solid', linewidth=0.5)
         self.ax.hlines(range(1, self.size, 2), 0, self.size, colors='r', linestyles='dashed', linewidth=0.5)
@@ -187,9 +211,14 @@ class LifeGame:
         self.step_counter += 1
         self.fig.canvas.draw()
 
-        # Final check after increment
         if self.step_counter >= self.max_steps:
             self.show_stability_curve()
+            self.show_dead_zone()
+            self.show_lifespan_graph()
+
+        if self.step_counter >= self.max_steps:
+            self.show_stability_curve()
+            self.show_dead_zone()
 
     def show_stability_curve(self):
         fig, ax = plt.subplots()
@@ -199,6 +228,8 @@ class LifeGame:
         ax.plot(generations, self.live_ratio_history[:self.step_counter], label='Live Cell %', color='green')
         if self.first_stable_gen is not None:
             ax.axvline(self.first_stable_gen, color='gray', linestyle='--', label='Stabilization Point')
+
+
         ax.set_xlabel('Generation')
         ax.set_ylabel('Percent')
         ax.set_title(f'Stability Curve ({self.step_counter} generations)')
@@ -206,7 +237,18 @@ class LifeGame:
         print("\n--- Simulation Summary ---")
         print(f"Stabilized at Generation: {self.first_stable_gen if self.first_stable_gen is not None else 'Never'}")
         print(f"Stability Threshold: {self.STABILITY_THRESHOLD}%")
+        ax.legend()
+        plt.show()
 
+    def show_lifespan_graph(self):
+        fig, ax = plt.subplots()
+        ax.plot(range(len(self.avg_lifespan_history)), self.avg_lifespan_history, label='Avg Live Cell Lifespan',
+                color='purple')
+        ax.plot(range(len(self.max_lifespan_history)), self.max_lifespan_history, label='Max Lifespan', color='orange')
+        ax.set_xlabel('Generation')
+        ax.set_ylabel('Lifespan (steps)')
+        ax.set_title('Cell Lifespan Tracking')
+        ax.grid(True)
         ax.legend()
         plt.show()
 
