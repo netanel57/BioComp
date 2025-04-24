@@ -216,9 +216,7 @@ class LifeGame:
             self.show_dead_zone()
             self.show_lifespan_graph()
 
-        if self.step_counter >= self.max_steps:
-            self.show_stability_curve()
-            self.show_dead_zone()
+
 
     def show_stability_curve(self):
         fig, ax = plt.subplots()
