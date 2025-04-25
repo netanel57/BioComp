@@ -26,17 +26,17 @@ class LifeGame:
         self.live_prob = live_prob
         self.wraparound = wraparound
         self.step_counter = 0
-    
-        #Buttons
+
+        # Buttons
         self.paused = True
         self.started = False
 
         self.speed_mode = "medium"
         self.speed_map = {
-        "slow": 1000,
-        "medium": 300,
-        "fast": 50
-       }
+            "slow": 1000,
+            "medium": 300,
+            "fast": 50
+        }
 
     def on_speed_toggle(self, event):
         modes = list(self.speed_map.keys())
@@ -76,7 +76,7 @@ class LifeGame:
         self.paused = not self.paused
 
     def on_quit(self, event):
-         plt.close()
+        plt.close()
 
     def on_reset(self, event):
         self.paused = True
@@ -84,6 +84,9 @@ class LifeGame:
         self.step_counter = 0
         self.change_history.clear()
         self.live_ratio_history.clear()
+        self.dead_zone_history.clear()
+        self.avg_lifespan_history.clear()
+        self.max_lifespan_history.clear()
         self.first_stable_gen = None
 
         #
@@ -127,12 +130,13 @@ class LifeGame:
         percent_changed = (changed / self.state.size) * 100
         self.change_history.append(percent_changed)
 
-        unchanged_cell=np.sum(self.state == prev_state)
-        deadzone_cell=np.sum(unchanged_cell/self.state.size)*100
+        unchanged_cell = np.sum(self.state == prev_state)
+        deadzone_cell = np.sum(unchanged_cell / self.state.size) * 100
         self.dead_zone_history.append(deadzone_cell)
+
     def show_dead_zone(self):
         fig, ax = plt.subplots()
-        ax.plot(range(len(self.dead_zone_history)), self.dead_zone_history,label="Dead Zone",color="red")
+        ax.plot(range(len(self.dead_zone_history)), self.dead_zone_history, label="Dead Zone", color="red")
         ax.set_xlabel("Generation")
         ax.set_ylabel("Dead Zone ratio")
         ax.set_title("Dead Zone Ratio")
@@ -216,8 +220,6 @@ class LifeGame:
             self.show_dead_zone()
             self.show_lifespan_graph()
 
-
-
     def show_stability_curve(self):
         fig, ax = plt.subplots()
 
@@ -226,7 +228,6 @@ class LifeGame:
         ax.plot(generations, self.live_ratio_history[:self.step_counter], label='Live Cell %', color='green')
         if self.first_stable_gen is not None:
             ax.axvline(self.first_stable_gen, color='gray', linestyle='--', label='Stabilization Point')
-
 
         ax.set_xlabel('Generation')
         ax.set_ylabel('Percent')
@@ -265,26 +266,26 @@ class LifeGame:
 
         # Buttons    #  reminder -[left, bottom, width, height]
         ax_start = plt.axes([0.05, 0.05, 0.15, 0.075])
-        btn_start = Button(ax_start, 'Start',color='orange')
+        btn_start = Button(ax_start, 'Start', color='orange')
         btn_start.on_clicked(self.on_start)
 
         ax_pause = plt.axes([0.25, 0.05, 0.15, 0.075])
-        btn_pause = Button(ax_pause, 'Pause',color='orange')
+        btn_pause = Button(ax_pause, 'Pause', color='orange')
         btn_pause.on_clicked(self.on_pause)
 
         ax_quit = plt.axes([0.45, 0.05, 0.15, 0.075])
-        btn_quit = Button(ax_quit, 'Quit',color='orange')
+        btn_quit = Button(ax_quit, 'Quit', color='orange')
         btn_quit.on_clicked(self.on_quit)
 
         ax_wrap = plt.axes([0.65, 0.05, 0.25, 0.075])
-        btn_wrap = Button(ax_wrap, 'Wraparound OFF',color='blue')
+        btn_wrap = Button(ax_wrap, 'Wraparound OFF', color='blue')
         btn_wrap.on_clicked(lambda event: [
             self.on_toggle_wraparound(event),
             btn_wrap.label.set_text(f"Wraparound {'ON' if self.wraparound else 'OFF'}")
         ])
 
         ax_reset = plt.axes([0.85, 0.90, 0.1, 0.05])
-        btn_reset = Button(ax_reset, 'Reset',color='red')
+        btn_reset = Button(ax_reset, 'Reset', color='red')
         btn_reset.on_clicked(self.on_reset)
 
         # Text field for live probability
@@ -302,7 +303,6 @@ class LifeGame:
                 print("Invalid input. Please enter a numeric value between 0 and 1.")
 
         self.prob_input.on_submit(submit_prob)
-
 
         ax_speed = plt.axes([0.6, 0.90, 0.25, 0.05])
         self.btn_speed = Button(ax_speed, 'Speed: Medium')
@@ -335,4 +335,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(args)
     lg = LifeGame(size=args.size, live_prob=args.proba, wraparound=args.wraparound)
-    lg.play(args.steps,args.pausetime)
+    lg.play(args.steps, args.pausetime)
