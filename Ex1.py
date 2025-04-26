@@ -284,7 +284,7 @@ class LifeGame:
             btn_wrap.label.set_text(f"Wraparound {'ON' if self.wraparound else 'OFF'}")
         ])
 
-        ax_reset = plt.axes([0.85, 0.90, 0.1, 0.05])
+        ax_reset = plt.axes([0.90, 0.90, 0.1, 0.05])
         btn_reset = Button(ax_reset, 'Reset', color='red')
         btn_reset.on_clicked(self.on_reset)
 
@@ -304,7 +304,7 @@ class LifeGame:
 
         self.prob_input.on_submit(submit_prob)
 
-        ax_speed = plt.axes([0.6, 0.90, 0.25, 0.05])
+        ax_speed = plt.axes([0.73, 0.90, 0.17, 0.05])
         self.btn_speed = Button(ax_speed, 'Speed: Medium')
         self.btn_speed.on_clicked(self.on_speed_toggle)
         self.timer = self.fig.canvas.new_timer(interval=self.speed_map[self.speed_mode])
