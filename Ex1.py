@@ -264,7 +264,7 @@ class LifeGame:
         )
         plt.subplots_adjust(bottom=0.2)
 
-        # Buttons    #  reminder -[left, bottom, width, height]
+        # Buttons    #  reminder -[left/right, bottom/up, width, height]
         ax_start = plt.axes([0.05, 0.05, 0.15, 0.075])
         btn_start = Button(ax_start, 'Start', color='orange')
         btn_start.on_clicked(self.on_start)
@@ -289,7 +289,7 @@ class LifeGame:
         btn_reset.on_clicked(self.on_reset)
 
         # Text field for live probability
-        ax_prob = plt.axes([0.2, 0.80, 0.2, 0.05])
+        ax_prob = plt.axes([0.3, 0.90, 0.1, 0.05])
         self.prob_input = TextBox(ax_prob, 'Live Prob (0-1):', initial=str(self.live_prob))
 
         def submit_prob(text):
@@ -310,8 +310,8 @@ class LifeGame:
         self.timer = self.fig.canvas.new_timer(interval=self.speed_map[self.speed_mode])
 
         # Text field for number of generations
-        ax_gen = plt.axes([0.15, 0.90, 0.2, 0.05])
-        self.gen_input = TextBox(ax_gen, 'Select number of generations:', initial=str(self.max_steps))
+        ax_gen = plt.axes([0.3, 0.95, 0.1, 0.05])
+        self.gen_input = TextBox(ax_gen, 'Number of generations:', initial=str(self.max_steps))
 
         # Timer-based animation
         self.timer = self.fig.canvas.new_timer(interval=int(pause_time * 1000))
