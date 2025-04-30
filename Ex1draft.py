@@ -10,7 +10,7 @@ def flip(bin_num):
 
 
 class LifeGame:
-    def __init__(self, size=8, live_prob=0.5, wraparound=False):
+    def __init__(self, size=8, live_prob=0.5, wraparound=False, seed=None):
         self.change_history = []
         self.live_ratio_history = []
         self.first_stable_gen = None
@@ -22,6 +22,7 @@ class LifeGame:
         self.live_prob = live_prob
         self.wraparound = wraparound
         self.step_counter = 0
+        self.seed = seed
     
         #Buttons
         self.paused = True
@@ -60,6 +61,8 @@ class LifeGame:
                 print("Invalid number of generations. Using default:", self.max_steps)
 
             # Generate the initial grid
+            self.seed = None if self.seed_input.text == "" else int(self.seed_input.text)
+            np.random.seed(self.seed)
             self.state = np.random.random((self.size, self.size))
             self.state[self.state < self.live_prob] = 0
             self.state[self.state >= self.live_prob] = 1
@@ -97,6 +100,9 @@ class LifeGame:
         # Reset the prob input
         if hasattr(self, 'prob_input'):
             self.prob_input.set_val(str(self.live_prob))
+
+        if hasattr(self, 'seed_input'):
+            self.seed_input.set_val("" if self.seed is None else str(self.seed))
 
         # Clear the plot
         self.ax.clear()
@@ -221,7 +227,7 @@ class LifeGame:
             fontsize=10,
             bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3'),
         )
-        plt.subplots_adjust(bottom=0.2)
+        plt.subplots_adjust(bottom=0.3)
 
         # Buttons    #  reminder -[left, bottom, width, height]
         ax_start = plt.axes([0.05, 0.05, 0.15, 0.075])
@@ -243,13 +249,21 @@ class LifeGame:
             btn_wrap.label.set_text(f"Wraparound {'ON' if self.wraparound else 'OFF'}")
         ])
 
-        ax_reset = plt.axes([0.85, 0.90, 0.1, 0.05])
+        # ax_reset = plt.axes([0.85, 0.90, 0.1, 0.05])
+        ax_reset = plt.axes([0.85, 0.15, 0.1, 0.05])
         btn_reset = Button(ax_reset, 'Reset',color='red')
         btn_reset.on_clicked(self.on_reset)
 
+        # Text field for seed
+        ax_prob = plt.axes([0.15, 0.90, 0.075, 0.05])
+        tmp_seed = "" if self.seed is None else self.seed
+        self.seed_input = TextBox(ax_prob, 'Seed: ', initial=str(tmp_seed), textalignment="center")
+        self.seed = None if self.seed_input.text == "" else int(self.seed_input.text)
+
         # Text field for live probability
-        ax_prob = plt.axes([0.2, 0.80, 0.2, 0.05])
-        self.prob_input = TextBox(ax_prob, 'Live Prob (0-1):', initial=str(self.live_prob))
+        # ax_prob = plt.axes([0.2, 0.80, 0.2, 0.05])
+        ax_prob = plt.axes([0.45, 0.15, 0.075, 0.05])
+        self.prob_input = TextBox(ax_prob, 'Live Prob (0-1): ', initial=str(self.live_prob), textalignment="center")
 
         def submit_prob(text):
             try:
@@ -264,14 +278,16 @@ class LifeGame:
         self.prob_input.on_submit(submit_prob)
 
 
-        ax_speed = plt.axes([0.6, 0.90, 0.25, 0.05])
+        # ax_speed = plt.axes([0.6, 0.90, 0.25, 0.05])
+        ax_speed = plt.axes([0.6, 0.15, 0.25, 0.05])
         self.btn_speed = Button(ax_speed, 'Speed: Medium')
         self.btn_speed.on_clicked(self.on_speed_toggle)
         self.timer = self.fig.canvas.new_timer(interval=self.speed_map[self.speed_mode])
 
         # Text field for number of generations
-        ax_gen = plt.axes([0.15, 0.90, 0.2, 0.05])
-        self.gen_input = TextBox(ax_gen, 'Select number of generations:', initial=str(self.max_steps))
+        # ax_gen = plt.axes([0.15, 0.90, 0.2, 0.05])
+        ax_gen = plt.axes([0.15, 0.15, 0.075, 0.05])
+        self.gen_input = TextBox(ax_gen, '# Gen: ', initial=str(self.max_steps), textalignment="center")
 
         # Timer-based animation
         self.timer = self.fig.canvas.new_timer(interval=int(pause_time * 1000))
@@ -292,9 +308,10 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--proba', default=0.5, type=float)
     parser.add_argument('-w', '--wraparound', action='store_true', default=False)
     parser.add_argument('-t', '--pausetime', default=1, type=int)
+    parser.add_argument('-r', '--seed', default=None, type=int)
     args = parser.parse_args()
     print(args)
-    lg = LifeGame(size=args.size, live_prob=args.proba, wraparound=args.wraparound)
-    lg.play(args.steps,args.pausetime)
+    lg = LifeGame(size=args.size, live_prob=args.proba, wraparound=args.wraparound, seed=args.seed)
+    lg.play(args.steps, args.pausetime)
 
 
