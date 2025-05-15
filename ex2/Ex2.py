@@ -62,7 +62,35 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
 
     def mutation(self, mutation_rate=0.05):
         # mutation we defined here as swapping two places
-        pass
+
+        # randomize numbers for each cell
+        rand_n = np.random.random((self.size, self.size))
+        print(rand_n)
+        # find all cells to be mutated
+        mutators = np.where(rand_n.flatten() < mutation_rate)[0]
+
+        # if there is an odd number add the next number in line or remove if at max size
+        if mutators.size % 2 == 1:
+            mutators_l = mutators.tolist()
+            if mutators.size != self.square.size:
+                next = rand_n.flatten()[np.where(rand_n.flatten() >= mutation_rate)[0]].argmin()
+                mutators_l.append(next)
+            elif mutators.size == self.square.size:
+                next = rand_n.flatten()[np.where(rand_n.flatten() < mutation_rate)[0]].argmax()
+                mutators_l.remove(next)
+            mutators = np.array(mutators_l)
+
+        # shuffle indexes to swap every pair
+        np.random.shuffle(mutators)
+
+        # swap every pair
+        flatten_square = self.square.flatten()
+        for i in range(0, mutators.size, 2):
+            tmp_value = flatten_square[mutators[i]]
+            flatten_square[mutators[i]] = flatten_square[mutators[i+1]]
+            flatten_square[mutators[i+1]] = tmp_value
+        self.square = flatten_square.reshape((self.size, self.size))
+        return self.square
 
     def _get_wrapped_2x2_subsquares(self):
         # helper function to get sub-squares
@@ -135,7 +163,9 @@ print(msp)
 # # print(msp_3.fitness())
 # print(msp == tmp)
 # print(msp != tmp)
-msp.mutation()
+print(msp.mutation(mutation_rate=0.03))
+print(msp.mutation(mutation_rate=0.03))
+print(msp.mutation(mutation_rate=0.03))
 
 # l = [msp, msp_2, msp_3]
 # print(sorted(l, reverse=True))
