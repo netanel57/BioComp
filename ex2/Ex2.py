@@ -7,9 +7,14 @@ import abc
 
 
 class GeneticAlgorithmProblem(metaclass=abc.ABCMeta):
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, min_max='max', min_value=-np.inf, max_value=np.inf):
         self.seed = seed
+        self.min_max = min_max
         np.random.seed(self.seed)
+        # we might not need min and max value
+        self.min_value = min_value
+        self.max_value = max_value
+        #
 
     @abc.abstractmethod
     def fitness(self):
@@ -25,8 +30,9 @@ class GeneticAlgorithmProblem(metaclass=abc.ABCMeta):
 
 
 class MagicSquareProblem(GeneticAlgorithmProblem):
-    def __init__(self, size, seed=None):
-        super().__init__(seed=seed)
+    def __init__(self, size, seed=None, min_max='min', min_value=0):
+        # we might not need min and max value
+        super().__init__(seed=seed, min_max=min_max, min_value=min_value, max_value=(size**3) * (size**2 + 1) / 2)
         self.size = size
         self.sub_constant = size**2 + 1
         self.sub_square_constant = 2 * self.sub_constant
@@ -58,6 +64,7 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
             return sum([sub_squares_sum, diag1_abs, diag2_abs, pairs1, pairs2, cols_abs, rows_abs])
 
     def crossover(self, other):
+        # TODO: very similar to the lecture
         pass
 
     def mutation(self, mutation_rate=0.05):
@@ -105,9 +112,6 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
 
     # maybe define solver/learner here or create new class for it
 
-    # maybe add the genetic functions here
-    # while the GeneticAlgorithm class will run the class abstractly
-
     def __eq__(self, other):
         # maybe need to add this depending if we're looking for equivalence solely on fitness
         # np.array_equal(self.square, other.square)
@@ -139,11 +143,27 @@ class GeneticAlgorithm:
     def __init__(self, problem, learning_type=None, problem_args=None, pop_size=100):
         self.pop_size = pop_size
         self.problem = problem
+        self.min_max = problem.min_max
+        # we might not need min and max value
+        self.min_value = problem.min_value
+        self.max_value = problem.max_value
+        #
         self.population = [self.problem(**problem_args) for i in range(pop_size)]
         self.learning_type = learning_type
 
     def generation_step(self):
+        sorted_population = sorted(self.population, reverse=self.min_max == 'max')
+        # TODO: max-min range maybe also add helper function for selection
         pass
+
+    def learning_step(self):
+        if self.learning_type:
+            pass
+
+    def play(self, max_steps=100):
+        for i in range(max_steps):
+            self.learning_step()
+            self.generation_step()
 
 
 # couple of tests will delete later
