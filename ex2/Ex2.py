@@ -1,12 +1,32 @@
+from abc import ABC
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import abc
 
 
-class MagicSquareProblem:
-    def __init__(self, size, seed=None):
+class GeneticAlgorithmProblem(metaclass=abc.ABCMeta):
+    def __init__(self, seed=None):
         self.seed = seed
         np.random.seed(self.seed)
+
+    @abc.abstractmethod
+    def fitness(self):
+        raise NotImplementedError('Please implement a fitness function.')
+
+    @abc.abstractmethod
+    def crossover(self, other):
+        raise NotImplementedError('Please implement a crossover function.')
+
+    @abc.abstractmethod
+    def mutation(self, mutation_rate=0.05):
+        raise NotImplementedError('Please implement a mutation function.')
+
+
+class MagicSquareProblem(GeneticAlgorithmProblem):
+    def __init__(self, size, seed=None):
+        super().__init__(seed=seed)
         self.size = size
         self.sub_constant = size**2 + 1
         self.sub_square_constant = 2 * self.sub_constant
@@ -37,6 +57,13 @@ class MagicSquareProblem:
             # returns the sum of all the differences to their target; perfect square is fitness = 0
             return sum([sub_squares_sum, diag1_abs, diag2_abs, pairs1, pairs2, cols_abs, rows_abs])
 
+    def crossover(self, other):
+        pass
+
+    def mutation(self, mutation_rate=0.05):
+        # mutation we defined here as swapping two places
+        pass
+
     def _get_wrapped_2x2_subsquares(self):
         # helper function to get sub-squares
         subsquares = []
@@ -54,6 +81,8 @@ class MagicSquareProblem:
     # while the GeneticAlgorithm class will run the class abstractly
 
     def __eq__(self, other):
+        # maybe need to add this depending if we're looking for equivalence solely on fitness
+        # np.array_equal(self.square, other.square)
         return self.fitness() == other.fitness()
 
     def __ge__(self, other):
@@ -68,6 +97,9 @@ class MagicSquareProblem:
     def __lt__(self, other):
         return self.fitness() < other.fitness()
 
+    def __ne__(self, other):
+        return self.fitness() != other.fitness()
+
     def __str__(self):
         return self.square.__str__()
 
@@ -76,20 +108,34 @@ class MagicSquareProblem:
 
 
 class GeneticAlgorithm:
-    def __init__(self):
+    def __init__(self, problem, learning_type=None, problem_args=None, pop_size=100):
+        self.pop_size = pop_size
+        self.problem = problem
+        self.population = [self.problem(**problem_args) for i in range(pop_size)]
+        self.learning_type = learning_type
+
+    def generation_step(self):
         pass
 
 
 # couple of tests will delete later
 msp = MagicSquareProblem(3, 42)
-msp_2 = MagicSquareProblem(3, 39)
-msp_3 = MagicSquareProblem(3, 32)
+# msp_4 = MagicSquareProblem(3, 42)
+# msp_2 = MagicSquareProblem(3, 39)
+# msp_3 = MagicSquareProblem(3, 32)
+# # for i in range(32):
+# tmp = MagicSquareProblem(3, 5)
+# print(tmp)
 print(msp)
-print(msp_2)
-print(msp_3)
-print(msp.fitness())
-print(msp_2.fitness())
-print(msp_3.fitness())
-print(msp == msp_2)
-l = [msp, msp_2, msp_3]
-print(sorted(l, reverse=True))
+# # print(msp_2)
+# # print(msp_3)
+# print(msp.fitness())
+# print(tmp.fitness())
+# # print(msp_2.fitness())
+# # print(msp_3.fitness())
+# print(msp == tmp)
+# print(msp != tmp)
+msp.mutation()
+
+# l = [msp, msp_2, msp_3]
+# print(sorted(l, reverse=True))
