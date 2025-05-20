@@ -63,16 +63,56 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
             # returns the sum of all the differences to their target; perfect square is fitness = 0
             return sum([sub_squares_sum, diag1_abs, diag2_abs, pairs1, pairs2, cols_abs, rows_abs])
 
-    def crossover(self, other):
-        # TODO: very similar to the lecture
-        pass
+    def crossover(self, other, crossover_points=1):
+        # cross over we defined as in the lecture with multiple crossover points,
+        # while fixing only the values from the other parent to make it valid
+        assert self.square.shape == other.square.shape, "need to be same shape."
+        flatten_square = self.square.flatten()
+        other_flatten_square = other.square.flatten()
+        # generating crossover points
+        points = np.sort(np.random.choice(range(1, self.square.size), size=crossover_points, replace=False))
+        points = np.concatenate(([0], points, [self.square.size]))
+        # choosing whether to use the prime parent first or second
+        choice = np.random.choice(['first', 'second'])
+        result_flatten_square = np.empty_like(flatten_square)
+        place_parent_1 = np.empty_like(flatten_square)
+        # loop on the crossover points and use the correct parent
+        for i in range(len(points) - 1):
+            start, end = points[i], points[i + 1]
+            if (i % 2 == 0 and choice == 'first') or (i % 2 == 1 and choice == 'second'):
+                result_flatten_square[start:end] = flatten_square[start:end]
+                place_parent_1[start:end] = True
+            elif (i % 2 == 1 and choice == 'first') or (i % 2 == 0 and choice == 'second'):
+                result_flatten_square[start:end] = other_flatten_square[start:end]
+                place_parent_1[start:end] = False
+
+        unique_elements = set(np.arange(1, self.square.size + 1))
+        seen = set()
+        duplicates = list()
+        dup_dict = dict()
+        # look for duplicates from the other parent
+        for i, val in enumerate(result_flatten_square):
+            if val not in seen:
+                if not place_parent_1[i]:
+                    dup_dict[val] = i
+                seen.add(val)
+            elif place_parent_1[i]:
+                duplicates.append(dup_dict[val])
+            else:
+                duplicates.append(i)
+        # get all missing values shuffle them and input them in the duplicate locations
+        missing = list(unique_elements - seen)
+        np.random.shuffle(missing)
+        result_flatten_square[duplicates] = missing
+        self.square = result_flatten_square.reshape((self.size, self.size))
+
+        return self.square
 
     def mutation(self, mutation_rate=0.05):
         # mutation we defined here as swapping two places
 
         # randomize numbers for each cell
         rand_n = np.random.random((self.size, self.size))
-        print(rand_n)
         # find all cells to be mutated
         mutators = np.where(rand_n.flatten() < mutation_rate)[0]
 
@@ -174,7 +214,7 @@ msp = MagicSquareProblem(3, 42)
 # # for i in range(32):
 # tmp = MagicSquareProblem(3, 5)
 # print(tmp)
-print(msp)
+# print(msp)
 # # print(msp_2)
 # # print(msp_3)
 # print(msp.fitness())
@@ -183,9 +223,47 @@ print(msp)
 # # print(msp_3.fitness())
 # print(msp == tmp)
 # print(msp != tmp)
-print(msp.mutation(mutation_rate=0.03))
-print(msp.mutation(mutation_rate=0.03))
-print(msp.mutation(mutation_rate=0.03))
+# print(msp.mutation(mutation_rate=0.03))
+# print(msp.mutation(mutation_rate=0.03))
+# print(msp.mutation(mutation_rate=0.03))
 
+s1 = MagicSquareProblem(3, 50)
+s2 = MagicSquareProblem(3, 32)
+print(s1)
+print(s2)
+print(s1.crossover(s2, 1))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+# print(s2.crossover(s1))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+# print(s1.crossover(s2))
+
+# s2 = np.array([9,8,7,6,5,4,3,2,1])
+
+# number_list = np.arange(1,10)
+# res = np.array(s1[:3].tolist() + s2[3:].tolist()).reshape((3,3))
+# arg = np.isin(s2[3:], s1[:3])
+# arg2 = np.isin([1,2,3,4,5,6,7,8,9], res)
+# missing_numbers = number_list[~arg2]
+# perm_missing_numbers = np.random.permutation(missing_numbers)
+# print(arg)
+# print(number_list[~arg2])
+# print(res)
+# print(perm_missing_numbers)
+# print(s2)
+# # res2 = np.array(s1[:3].tolist() + s2[3:].tolist()).reshape((3,3))
+# s2[3:][arg] = perm_missing_numbers
+# fixed_res = np.array(s1[:3].tolist() + s2[3:].tolist()).reshape((3,3))
+# print(fixed_res)
 # l = [msp, msp_2, msp_3]
 # print(sorted(l, reverse=True))
