@@ -1,3 +1,4 @@
+import copy
 from abc import ABC
 
 import numpy as np
@@ -30,9 +31,9 @@ class GeneticAlgorithmProblem(metaclass=abc.ABCMeta):
 
 
 class MagicSquareProblem(GeneticAlgorithmProblem):
-    def __init__(self, size, seed=None, min_max='min', min_value=0):
+    def __init__(self, size, seed=None):
         # we might not need min and max value
-        super().__init__(seed=seed, min_max=min_max, min_value=min_value, max_value=(size**3) * (size**2 + 1) / 2)
+        super().__init__(seed=seed, min_max='min', min_value=0, max_value=(size**3) * (size**2 + 1) / 2)
         self.size = size
         self.sub_constant = size**2 + 1
         self.sub_square_constant = 2 * self.sub_constant
@@ -106,7 +107,7 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
         result_flatten_square[duplicates] = missing
         self.square = result_flatten_square.reshape((self.size, self.size))
 
-        return self.square
+        return self
 
     def mutation(self, mutation_rate=0.05):
         # mutation we defined here as swapping two places
@@ -137,7 +138,7 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
             flatten_square[mutators[i]] = flatten_square[mutators[i+1]]
             flatten_square[mutators[i+1]] = tmp_value
         self.square = flatten_square.reshape((self.size, self.size))
-        return self.square
+        return self
 
     def _get_wrapped_2x2_subsquares(self):
         # helper function to get sub-squares
@@ -155,22 +156,40 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
     def __eq__(self, other):
         # maybe need to add this depending if we're looking for equivalence solely on fitness
         # np.array_equal(self.square, other.square)
-        return self.fitness() == other.fitness()
+        if isinstance(other, MagicSquareProblem):
+            return self.fitness() == other.fitness()
+        else:
+            return self.fitness() == other
 
     def __ge__(self, other):
-        return self.fitness() >= other.fitness()
+        if isinstance(other, MagicSquareProblem):
+            return self.fitness() >= other.fitness()
+        else:
+            return self.fitness() >= other
 
     def __le__(self, other):
-        return self.fitness() <= other.fitness()
+        if isinstance(other, MagicSquareProblem):
+            return self.fitness() <= other.fitness()
+        else:
+            return self.fitness() <= other
 
     def __gt__(self, other):
-        return self.fitness() > other.fitness()
+        if isinstance(other, MagicSquareProblem):
+            return self.fitness() > other.fitness()
+        else:
+            return self.fitness() > other
 
     def __lt__(self, other):
-        return self.fitness() < other.fitness()
+        if isinstance(other, MagicSquareProblem):
+            return self.fitness() < other.fitness()
+        else:
+            return self.fitness() < other
 
     def __ne__(self, other):
-        return self.fitness() != other.fitness()
+        if isinstance(other, MagicSquareProblem):
+            return self.fitness() != other.fitness()
+        else:
+            return self.fitness() != other
 
     def __str__(self):
         return self.square.__str__()
@@ -179,35 +198,79 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
         return self.__str__()
 
 
+def selection_min(population, population_fitness):
+    max_f = max(population_fitness)
+    reverse_f = [(max_f - f) + 1 for f in population_fitness]
+    reverse_total_f = sum(reverse_f)
+    norm_total_f = [f/reverse_total_f for f in reverse_f]
+    sel1, sel2 = np.random.choice(population, size=2, replace=False, p=norm_total_f)
+    return sel1, sel2
+
+
 class GeneticAlgorithm:
-    def __init__(self, problem, learning_type=None, problem_args=None, pop_size=100):
+    def __init__(self, problem, problem_args=None, elitism=0, learning_type=None, selection_method=selection_min,
+                 pop_size=100):
         self.pop_size = pop_size
         self.problem = problem
-        self.min_max = problem.min_max
-        # we might not need min and max value
-        self.min_value = problem.min_value
-        self.max_value = problem.max_value
-        #
+        self.min_max = problem(**problem_args).min_max
+        self.elitism = elitism
+        self.selection_method = selection_method
+        # TODO: make sure to allow seeding the initial population
         self.population = [self.problem(**problem_args) for i in range(pop_size)]
+        # print(sorted(self.population, reverse=self.min_max == 'max')[0].fitness())
+        self.sorted_population = list()
+        self.sorted_population_fitness = list()
         self.learning_type = learning_type
 
     def generation_step(self):
-        sorted_population = sorted(self.population, reverse=self.min_max == 'max')
-        # TODO: max-min range maybe also add helper function for selection
-        pass
+        new_population = list()
+        if self.elitism != 0:
+            for i in range(self.elitism):
+                new_population.append(self.sorted_population[i])
+        for i in range(self.pop_size - self.elitism):
+            new_population.append(self.offspring_creation(self.sorted_population, self.sorted_population_fitness))
+        self.population = new_population
+
+    def offspring_creation(self, sorted_population, sorted_population_fitness):
+        p1, p2 = self.selection_method(sorted_population, sorted_population_fitness)
+        p1_copy = copy.deepcopy(p1)
+        offspring = p1_copy.crossover(p2)
+        offspring.mutation()
+        return offspring
 
     def learning_step(self):
         if self.learning_type:
-            pass
+            # TODO: create darwinian and lamarkian learning steps
+            if self.learning_type == 'darwinian':
+                pass
+            elif self.learning_type == 'lamarkian':
+                pass
+        else:
+            self.sorted_population = sorted(self.population, reverse=self.min_max == 'max')
+            self.sorted_population_fitness = [p.fitness() for p in self.sorted_population]
 
     def play(self, max_steps=100):
+        # TODO: create a procedure that deals with premature convergence
+        min_f = min(self.population)
         for i in range(max_steps):
             self.learning_step()
             self.generation_step()
+            curr = min(self.population)
+            if min_f > curr:
+                min_f = curr
+                print(min_f.fitness(), i)
+            if min_f == 0:
+                print('stopped at:', i)
+        return sorted(self.population, reverse=self.min_max == 'max')[0], sorted(self.population, reverse=self.min_max == 'max')[0].fitness()
 
 
 # couple of tests will delete later
-msp = MagicSquareProblem(3, 42)
+ga = GeneticAlgorithm(MagicSquareProblem, problem_args={'size': 4}, elitism=2)
+print(ga.play())
+# for f, p in ga.play():
+#     print(f, p)
+# msp = MagicSquareProblem(3, 42)
+# print(msp.seed)
 # msp_4 = MagicSquareProblem(3, 42)
 # msp_2 = MagicSquareProblem(3, 39)
 # msp_3 = MagicSquareProblem(3, 32)
@@ -227,11 +290,11 @@ msp = MagicSquareProblem(3, 42)
 # print(msp.mutation(mutation_rate=0.03))
 # print(msp.mutation(mutation_rate=0.03))
 
-s1 = MagicSquareProblem(3, 50)
-s2 = MagicSquareProblem(3, 32)
-print(s1)
-print(s2)
-print(s1.crossover(s2, 1))
+# s1 = MagicSquareProblem(3, 50)
+# s2 = MagicSquareProblem(3, 32)
+# print(s1)
+# print(s2)
+# print(s1.crossover(s2, 1))
 # print(s1.crossover(s2))
 # print(s1.crossover(s2))
 # print(s1.crossover(s2))
