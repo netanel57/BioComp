@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import abc
 # from tqdm import tqdm
 import tqdm
-
+import itertools
 
 class GeneticAlgorithmProblem(metaclass=abc.ABCMeta):
     def __init__(self, seed=None, min_max='max', min_value=-np.inf, max_value=np.inf):
@@ -43,8 +43,11 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
         self.sub_square_constant = 2 * self.sub_constant
         self.constant = size * self.sub_constant / 2
         self.square = self.random.permutation(range(1, size*size + 1)).reshape((size, size))
+        self.computed_fitness = None
 
     def fitness(self):
+        if self.computed_fitness is not None:
+            return self.computed_fitness
         # get sums of columns and rows
         cols_abs = np.abs(self.square.sum(axis=0) - self.constant).sum()
         rows_abs = np.abs(self.square.sum(axis=1) - self.constant).sum()
@@ -55,8 +58,10 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
         diag1_abs = abs(diag1.sum() - self.constant)
         diag2_abs = abs(diag2.sum() - self.constant)
 
-        if self.size % 2 == 1:
-            return sum([cols_abs, rows_abs, diag1_abs, diag2_abs])
+        if self.size % 4 != 0:
+            f = sum([cols_abs, rows_abs, diag1_abs, diag2_abs])
+            self.computed_fitness = f
+            return f
         else:
             # gets pairs on major diagonals
             pairs1 = sum([abs(diag1[i::self.size//2].sum() - self.sub_constant) for i in range(self.size//2)])
@@ -66,12 +71,15 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
             sub_squares_sum = sum(self._get_wrapped_2x2_subsquares())
 
             # returns the sum of all the differences to their target; perfect square is fitness = 0
-            return sum([sub_squares_sum, diag1_abs, diag2_abs, pairs1, pairs2, cols_abs, rows_abs])
+            f = sum([sub_squares_sum, diag1_abs, diag2_abs, pairs1, pairs2, cols_abs, rows_abs])
+            self.computed_fitness = f
+            return f
 
     def crossover(self, other, crossover_points=1):
         # cross over we defined as in the lecture with multiple crossover points,
         # while fixing only the values from the other parent to make it valid
         assert self.square.shape == other.square.shape, "need to be same shape."
+        self.computed_fitness = None
         self.random.set_state(self.random_state)
         flatten_square = self.square.flatten()
         other_flatten_square = other.square.flatten()
@@ -117,6 +125,7 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
 
     def mutation(self, mutation_rate=0.05):
         # mutation we defined here as swapping two places
+        self.computed_fitness = None
         self.random.set_state(self.random_state)
         # randomize numbers for each cell
         rand_n = self.random.random((self.size, self.size))
@@ -158,7 +167,35 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
                 subsquares.append(sub_abs)
         return subsquares
 
-    # maybe define solver/learner here or create new class for it
+    def optimization_action(self, steps=1, learning='lamarkian'):
+        # TODO: need to optimize this to have most-perfect squares not be so slow
+        best_score = self.fitness()
+        best_square = self.square.copy()
+        true_old_square = self.square.copy()
+        indices = list(itertools.product(range(self.size), repeat=2))
+        k = 0
+        changed = True
+        while changed and k < steps:
+            changed = False
+            k += 1
+            old_square = best_square.copy()
+            for (i1, j1), (i2, j2) in itertools.combinations(indices, 2):
+                candidate = old_square.copy()
+                # Swap two values
+                candidate[i1, j1], candidate[i2, j2] = candidate[i2, j2], candidate[i1, j1]
+                self.square = candidate
+                self.computed_fitness = None
+                score = self.fitness()
+                if score < best_score:
+                    changed = True
+                    best_score = score
+                    best_square = candidate.copy()
+        if learning == 'lamarkian':
+            self.square = best_square
+        elif learning == 'darwinian':
+            self.square = true_old_square
+        self.computed_fitness = best_score
+        return self
 
     def __radd__(self, other):
         if isinstance(other, MagicSquareProblem):
@@ -227,7 +264,8 @@ def selection_min(population, population_fitness, randomer):
 
 
 class GeneticAlgorithm:
-    def __init__(self, problem, problem_args=None, crossover_points=1, mutation_rate=0.05, elitism=0, learning_type=None, selection_method=selection_min,
+    def __init__(self, problem, problem_args=None, crossover_points=1, mutation_rate=0.05, elitism=0,
+                 learning_type=None, learning_cap=None,selection_method=selection_min,
                  pop_size=100, population_split=4, population_seeds=None, seed=None):
         self.pop_size = pop_size
         self.problem = problem
@@ -242,6 +280,7 @@ class GeneticAlgorithm:
         # self.sorted_population = list()
         # self.sorted_population_fitness = list()
         self.learning_type = learning_type
+        self.learning_cap = learning_cap
         self.crossover_points = crossover_points
         self.mutation_rate = mutation_rate
         self.running_mutation_rate = mutation_rate
@@ -271,53 +310,22 @@ class GeneticAlgorithm:
         offspring.mutation(mutation_rate=self.running_mutation_rate)
         return offspring
 
-    def learning_step(self):
+    def learning_step(self, population):
         if self.learning_type:
-            # TODO: create darwinian and lamarkian learning steps
-            if self.learning_type == 'darwinian':
-                pass
-            elif self.learning_type == 'lamarkian':
-                pass
-        # else:
-        #     self.sorted_population = sorted(self.population, reverse=self.min_max == 'max')
-        #     self.sorted_population_fitness = [p.fitness() for p in self.sorted_population]
+            res_population = [p.optimization_action(steps=self.learning_cap, learning=self.learning_type) for p in population]
+        else:
+            res_population = [p.optimization_action(steps=0, learning='') for p in
+                              population]
+        return res_population
 
-    # def generation_step(self):
-    #     new_population = list()
-    #     if self.elitism != 0:
-    #         for i in range(self.elitism):
-    #             new_population.append(self.sorted_population[i])
-    #     for i in range(self.pop_size - self.elitism):
-    #         new_population.append(self.offspring_creation(self.sorted_population, self.sorted_population_fitness))
-    #     self.population = new_population
-    #
-    # def offspring_creation(self, sorted_population, sorted_population_fitness):
-    #     self.random.set_state(self.random_state)
-    #     p1, p2 = self.selection_method(sorted_population, sorted_population_fitness, self.random)
-    #     self.random_state = self.random.get_state()
-    #     p1_copy = copy.deepcopy(p1)
-    #     offspring = p1_copy.crossover(p2, crossover_points=self.crossover_points)
-    #     offspring.mutation(mutation_rate=self.running_mutation_rate)
-    #     return offspring
-    #
-    # def learning_step(self):
-    #     if self.learning_type:
-    #         # TODO: create darwinian and lamarkian learning steps
-    #         if self.learning_type == 'darwinian':
-    #             pass
-    #         elif self.learning_type == 'lamarkian':
-    #             pass
-    #     else:
-    #         self.sorted_population = sorted(self.population, reverse=self.min_max == 'max')
-    #         self.sorted_population_fitness = [p.fitness() for p in self.sorted_population]
 
     def play(self, max_steps=100):
         # TODO: create a procedure that deals with premature convergence
-        min_f = min(self.population)
+        # min_f = min(self.population)
         t = tqdm.trange(max_steps, desc="Result = ")
         # for i in tqdm(range(max_steps)):
         for i in t:
-            self.learning_step()
+            self.population = self.learning_step(self.population)
             if i % 10 == 0 and i != 0:
                 self.population = self.generation_step(self.population)
                 # print('migration')
@@ -349,10 +357,43 @@ class GeneticAlgorithm:
 
 
 # couple of tests will delete later
-ga = GeneticAlgorithm(MagicSquareProblem, problem_args={'size': 5}, elitism=2, crossover_points=1,
-                      mutation_rate=0.05, population_seeds=np.arange(42, 142), pop_size=100, seed=32)
+size = 7
+ga = GeneticAlgorithm(MagicSquareProblem, problem_args={'size': size}, elitism=2, crossover_points=1,
+                      mutation_rate=0.05,
+                      learning_type='lamarkian', learning_cap=size,
+                      population_seeds=np.arange(42, 142), pop_size=100, seed=32)
 print(ga.play(max_steps=500))
-# a = [1,2,3,4,5,6,7,8,9,10,11,12]
+
+# a = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+# arr1 = np.array(a).reshape((4,4))
+# print(arr1)
+# print(arr1.shape)
+# for i in range(4):
+#     for j in range(4):
+#         if i == j:
+#             print(arr[np.ix_([i, (i + 1) % 4], [j, (j + 1) % 4])])
+#             print(arr[np.ix_([i, (i - 1) % 4], [j, (j - 1) % 4])])
+#             print(arr[np.ix_([i, (i - 1) % 4], [j, (j + 1) % 4])])
+#             print(arr[np.ix_([i, (i + 1) % 4], [j, (j - 1) % 4])])
+# print(arr.argmin())
+# print(np.unravel_index(arr.argmax(), arr.shape))
+
+
+
+# try_opt(arr1)
+# try_opt(arr1)
+# try_opt(arr1)
+# try_opt(arr1)
+# try_opt(arr1)
+# try_opt(arr1)
+# try_opt(arr1)
+# try_opt(arr1)
+# try_opt(arr1)
+# try_opt(arr1)
+# try_opt(arr1)
+# try_opt(arr1)
+# stam = np.argwhere(arr1 == arr1.max())
+# print(stam[np.random.choice(len(stam))])
 # a_len = len(a)
 # for i in range(1,4+1):
 #     a[(i-1)*a_len//4:i*a_len//4] = [77*i] * (a_len//4)
@@ -362,6 +403,20 @@ print(ga.play(max_steps=500))
 
 # msp2 = MagicSquareProblem(4, 52)
 # msp = MagicSquareProblem(4, 42)
+# print(msp)
+# print(msp.fitness())
+# msp.optimization_action(steps=4, learning='lamarkian')
+# print(msp)
+# print(msp.fitness())
+# msp.optimization_action()
+# print(msp)
+# print(msp.fitness())
+# msp.optimization_action()
+# print(msp)
+# print(msp.fitness())
+# msp.optimization_action()
+# print(msp)
+# print(msp.fitness())
 # print(sum([msp,1]))
 # print(msp.mutation())
 # print(msp.mutation())
