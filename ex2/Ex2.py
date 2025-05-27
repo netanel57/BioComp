@@ -69,7 +69,7 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
             pairs2 = sum([abs(diag2[i::self.size//2].sum() - self.sub_constant) for i in range(self.size//2)])
 
             # get sum of every 2x2 sub-square with wraparound
-            sub_squares_sum = sum(self._get_wrapped_2x2_subsquares())
+            sub_squares_sum = np.abs(self._get_wrapped_2x2_subsquares().sum(axis=(2, 3)) - self.sub_square_constant).sum()
 
             # returns the sum of all the differences to their target; perfect square is fitness = 0
             f = sum([sub_squares_sum, diag1_abs, diag2_abs, pairs1, pairs2, cols_abs, rows_abs])
@@ -159,14 +159,29 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
 
     def _get_wrapped_2x2_subsquares(self):
         # helper function to get sub-squares
-        subsquares = []
-        for i in range(self.size):
-            for j in range(self.size):
-                sub_square = self.square[np.ix_([i, (i + 1) % self.size], [j, (j + 1) % self.size])]
-                sub_square_sum = sub_square.sum()
-                sub_abs = abs(sub_square_sum - self.sub_square_constant)
-                subsquares.append(sub_abs)
-        return subsquares
+        # Get all top-left corners of 2x2 blocks
+        row_idx = np.arange(self.size).reshape(self.size, 1)
+        col_idx = np.arange(self.size).reshape(1, self.size)
+
+        # Compute 2x2 block indices with wraparound
+        r0 = row_idx
+        r1 = (row_idx + 1) % self.size
+        c0 = col_idx
+        c1 = (col_idx + 1) % self.size
+
+        # Use advanced indexing to gather all 2x2 blocks
+        top_left = self.square[r0, c0]
+        top_right = self.square[r0, c1]
+        bottom_left = self.square[r1, c0]
+        bottom_right = self.square[r1, c1]
+
+        # Stack into shape (self.size, W, 2, 2)
+        blocks = np.stack([
+            np.stack([top_left, top_right], axis=-1),
+            np.stack([bottom_left, bottom_right], axis=-1)
+        ], axis=-2)
+
+        return blocks
 
     def optimization_action(self, steps=1, learning='lamarkian'):
         # TODO: need to optimize this to have most-perfect squares not be so slow
@@ -198,112 +213,112 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
         self.computed_fitness = best_score
         return self
 
-    def optimization_action_2(self, steps=1, learning='lamarkian'):
-        # TODO: need to optimize this to have most-perfect squares not be so slow
-        best_score = self.fitness()
-        best_square = self.square.copy()
-        true_old_square = self.square.copy()
-        k = 0
-        changed = True
-        while changed and k < steps:
-            changed = False
-            k += 1
-            old_square = best_square.copy()
-            diff_fit = np.empty_like(old_square)
-
-            cols_diff = old_square.sum(axis=0) - self.constant
-            rows_diff = old_square.sum(axis=1) - self.constant
-            diag1 = np.diag(old_square)
-            diag2 = np.diag(np.rot90(old_square, 1))
-            diag1_diff = diag1.sum() - self.constant
-            diag2_diff = diag2.sum() - self.constant
-            for i in range(self.size):
-                for j in range(self.size):
-                    # diff = cols_diff[j] + rows_diff[i]
-                    diff_fit[i, j] = cols_diff[j] + rows_diff[i]
-                    diffs = [cols_diff[j], rows_diff[i]]
-                    if i == j:
-                        diff_fit[i, j] += diag1_diff
-                        # diff += diag1_diff
-                        diffs.append(diag1_diff)
-                        if self.size % 4 == 0:
-                            pair_diff1 = old_square[i, j] + old_square[
-                                (i + self.size // 2) % self.size, (j + self.size // 2) % self.size] - self.sub_constant
-                            diff_fit[i, j] += pair_diff1
-                            # diff += pair_diff1
-                            diffs.append(pair_diff1)
-                    elif i + j == self.size - 1:
-                        diff_fit[i, j] += diag2_diff
-                        # diff += diag2_diff
-                        diffs.append(diag2_diff)
-                        if self.size % 4 == 0:
-                            pair_diff2 = old_square[i, j] + old_square[
-                                (i + self.size // 2) % self.size, (j - self.size // 2) % self.size] - self.sub_constant
-                            diff_fit[i, j] += pair_diff2
-                            # diff += pair_diff2
-                            diffs.append(pair_diff2)
-                    if self.size % 4 == 0:
-                        square_diff_1 = old_square[np.ix_([i, (i + 1) % self.size], [j, (j + 1) % self.size])].sum() - self.sub_square_constant
-                        square_diff_2 = old_square[np.ix_([i, (i - 1) % self.size], [j, (j - 1) % self.size])].sum() - self.sub_square_constant
-                        square_diff_3 = old_square[np.ix_([i, (i - 1) % self.size], [j, (j + 1) % self.size])].sum() - self.sub_square_constant
-                        square_diff_4 = old_square[np.ix_([i, (i + 1) % self.size], [j, (j - 1) % self.size])].sum() - self.sub_square_constant
-                        diff_fit[i, j] += square_diff_1 + square_diff_2 + square_diff_3 + square_diff_4
-                        # diff += square_diff_1 + square_diff_2 + square_diff_3 + square_diff_4
-                        diffs.append(square_diff_1)
-                        diffs.append(square_diff_2)
-                        diffs.append(square_diff_3)
-                        diffs.append(square_diff_4)
-                    # if i == 2 == j:
-                    #     print(diff_fit[i, j], diff, diff_fit)
-                    best_option = max(min(old_square[i, j] - np.ceil(np.mean(diffs)), self.size ** 2), 1)
-                    candidate = old_square.copy()
-                    point = np.argwhere(old_square == best_option)
-                    candidate[*point[0]] = old_square[i, j]
-                    candidate[i, j] = old_square[*point[0]]
-                    self.square = candidate
-                    # print(candidate)
-                    self.computed_fitness = None
-                    score = self.fitness()
-                    # diff_p1 = diff_fit[i, j] + len(diffs) * (best_option - candidate[i, j])
-                    # diff_p2 = diff_fit[*point[0]]
-                    # score =
-                    # print(score)
-                    if score < best_score:
-                        best_score = score
-                        changed = True
-                        best_square = candidate.copy()
-                    # if abs(diff) > abs(best_diff):
-                    #     best_diff = diff
-                    #     point = (i, j)
-                    #     diff_list = [q for q in diffs if q != 0]
-
-            # print(diff_fit)
-            # print(point)
-            # print(diff_list)
-            # print(diff_list[np.abs(diff_list).argmin()])
-            # next_diff = max(min(old_square[point] - np.ceil(np.mean(diff_list)), self.size ** 2), 1)
-
-            # print(next_diff)
-            # point_2 = np.argwhere(old_square == next_diff)
-            # print(point_2[0])
-            # print(old_square[*point_2[0]])
-            # tmp = old_square[*point_2[0]]
-            # candidate = old_square.copy()
-            # candidate[*point_2[0]] = old_square[point]
-            # candidate[point] = old_square[*point_2[0]]
-            # self.square = candidate
-            # score = self.fitness()
-            # if score < best_score:
-            #     best_score = score
-            #     changed = True
-            #     best_square = candidate.copy()
-        if learning == 'lamarkian':
-            self.square = best_square
-        elif learning == 'darwinian':
-            self.square = true_old_square
-        self.computed_fitness = best_score
-        # self.computed_fitness = None
-        return self
+    # def optimization_action_2(self, steps=1, learning='lamarkian'):
+    #     # TODO: need to optimize this to have most-perfect squares not be so slow
+    #     best_score = self.fitness()
+    #     best_square = self.square.copy()
+    #     true_old_square = self.square.copy()
+    #     k = 0
+    #     changed = True
+    #     while changed and k < steps:
+    #         changed = False
+    #         k += 1
+    #         old_square = best_square.copy()
+    #         diff_fit = np.empty_like(old_square)
+    #
+    #         cols_diff = old_square.sum(axis=0) - self.constant
+    #         rows_diff = old_square.sum(axis=1) - self.constant
+    #         diag1 = np.diag(old_square)
+    #         diag2 = np.diag(np.rot90(old_square, 1))
+    #         diag1_diff = diag1.sum() - self.constant
+    #         diag2_diff = diag2.sum() - self.constant
+    #         for i in range(self.size):
+    #             for j in range(self.size):
+    #                 # diff = cols_diff[j] + rows_diff[i]
+    #                 diff_fit[i, j] = cols_diff[j] + rows_diff[i]
+    #                 diffs = [cols_diff[j], rows_diff[i]]
+    #                 if i == j:
+    #                     diff_fit[i, j] += diag1_diff
+    #                     # diff += diag1_diff
+    #                     diffs.append(diag1_diff)
+    #                     if self.size % 4 == 0:
+    #                         pair_diff1 = old_square[i, j] + old_square[
+    #                             (i + self.size // 2) % self.size, (j + self.size // 2) % self.size] - self.sub_constant
+    #                         diff_fit[i, j] += pair_diff1
+    #                         # diff += pair_diff1
+    #                         diffs.append(pair_diff1)
+    #                 elif i + j == self.size - 1:
+    #                     diff_fit[i, j] += diag2_diff
+    #                     # diff += diag2_diff
+    #                     diffs.append(diag2_diff)
+    #                     if self.size % 4 == 0:
+    #                         pair_diff2 = old_square[i, j] + old_square[
+    #                             (i + self.size // 2) % self.size, (j - self.size // 2) % self.size] - self.sub_constant
+    #                         diff_fit[i, j] += pair_diff2
+    #                         # diff += pair_diff2
+    #                         diffs.append(pair_diff2)
+    #                 if self.size % 4 == 0:
+    #                     square_diff_1 = old_square[np.ix_([i, (i + 1) % self.size], [j, (j + 1) % self.size])].sum() - self.sub_square_constant
+    #                     square_diff_2 = old_square[np.ix_([i, (i - 1) % self.size], [j, (j - 1) % self.size])].sum() - self.sub_square_constant
+    #                     square_diff_3 = old_square[np.ix_([i, (i - 1) % self.size], [j, (j + 1) % self.size])].sum() - self.sub_square_constant
+    #                     square_diff_4 = old_square[np.ix_([i, (i + 1) % self.size], [j, (j - 1) % self.size])].sum() - self.sub_square_constant
+    #                     diff_fit[i, j] += square_diff_1 + square_diff_2 + square_diff_3 + square_diff_4
+    #                     # diff += square_diff_1 + square_diff_2 + square_diff_3 + square_diff_4
+    #                     diffs.append(square_diff_1)
+    #                     diffs.append(square_diff_2)
+    #                     diffs.append(square_diff_3)
+    #                     diffs.append(square_diff_4)
+    #                 # if i == 2 == j:
+    #                 #     print(diff_fit[i, j], diff, diff_fit)
+    #                 best_option = max(min(old_square[i, j] - np.ceil(np.mean(diffs)), self.size ** 2), 1)
+    #                 candidate = old_square.copy()
+    #                 point = np.argwhere(old_square == best_option)
+    #                 candidate[*point[0]] = old_square[i, j]
+    #                 candidate[i, j] = old_square[*point[0]]
+    #                 self.square = candidate
+    #                 # print(candidate)
+    #                 self.computed_fitness = None
+    #                 score = self.fitness()
+    #                 # diff_p1 = diff_fit[i, j] + len(diffs) * (best_option - candidate[i, j])
+    #                 # diff_p2 = diff_fit[*point[0]]
+    #                 # score =
+    #                 # print(score)
+    #                 if score < best_score:
+    #                     best_score = score
+    #                     changed = True
+    #                     best_square = candidate.copy()
+    #                 # if abs(diff) > abs(best_diff):
+    #                 #     best_diff = diff
+    #                 #     point = (i, j)
+    #                 #     diff_list = [q for q in diffs if q != 0]
+    #
+    #         # print(diff_fit)
+    #         # print(point)
+    #         # print(diff_list)
+    #         # print(diff_list[np.abs(diff_list).argmin()])
+    #         # next_diff = max(min(old_square[point] - np.ceil(np.mean(diff_list)), self.size ** 2), 1)
+    #
+    #         # print(next_diff)
+    #         # point_2 = np.argwhere(old_square == next_diff)
+    #         # print(point_2[0])
+    #         # print(old_square[*point_2[0]])
+    #         # tmp = old_square[*point_2[0]]
+    #         # candidate = old_square.copy()
+    #         # candidate[*point_2[0]] = old_square[point]
+    #         # candidate[point] = old_square[*point_2[0]]
+    #         # self.square = candidate
+    #         # score = self.fitness()
+    #         # if score < best_score:
+    #         #     best_score = score
+    #         #     changed = True
+    #         #     best_square = candidate.copy()
+    #     if learning == 'lamarkian':
+    #         self.square = best_square
+    #     elif learning == 'darwinian':
+    #         self.square = true_old_square
+    #     self.computed_fitness = best_score
+    #     # self.computed_fitness = None
+    #     return self
 
     def __radd__(self, other):
         if isinstance(other, MagicSquareProblem):
@@ -318,8 +333,6 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
             return self.fitness() + other
 
     def __eq__(self, other):
-        # maybe need to add this depending if we're looking for equivalence solely on fitness
-        # np.array_equal(self.square, other.square)
         if isinstance(other, MagicSquareProblem):
             return self.fitness() == other.fitness()
         else:
@@ -385,15 +398,11 @@ class GeneticAlgorithm:
             self.population = [self.problem(**problem_args, seed=s) for s in self.population_seeds]
         else:
             self.population = [self.problem(**problem_args, seed=None) for s in range(self.pop_size)]
-        # self.sorted_population = list()
-        # self.sorted_population_fitness = list()
         self.learning_type = learning_type
         self.learning_cap = learning_cap
         self.crossover_points = crossover_points
         self.mutation_rate = mutation_rate
         self.running_mutation_rate = mutation_rate
-        self.temp_change = 10
-        self.running_temp_change = 10
         self.random = np.random.RandomState(seed)
         self.random_state = self.random.get_state()
         self.population_split = population_split
@@ -420,19 +429,14 @@ class GeneticAlgorithm:
 
     def learning_step(self, population):
         if self.learning_type:
-            res_population = [p.optimization_action_2(steps=self.learning_cap, learning=self.learning_type) for p in population]
-            # res_population = [p.optimization_action(steps=self.learning_cap, learning=self.learning_type) for p in population]
+            res_population = [p.optimization_action(steps=self.learning_cap, learning=self.learning_type) for p in population]
         else:
-            res_population = [p.optimization_action_2(steps=0, learning='') for p in population]
-            # res_population = [p.optimization_action(steps=0, learning='') for p in population]
+            res_population = [p.optimization_action(steps=0, learning='') for p in population]
         return res_population
-
 
     def play(self, max_steps=100):
         # TODO: create a procedure that deals with premature convergence
         min_f = min(self.population).fitness()
-        # print(self.population)
-        # exit()
         t = tqdm.trange(max_steps, desc="Result = ")
         self.running_mutation_rate = self.mutation_rate
         last_gen_improvement = 0
@@ -463,31 +467,24 @@ class GeneticAlgorithm:
                 last_gen_improvement = i
             elif i - last_gen_improvement >= 20:
                 self.running_mutation_rate = 10 * self.mutation_rate
-                # print(last_gen_improvement, self.running_mutation_rate, self.mutation_rate)
-            # test1 = curr.optimization_action_2(steps=self.learning_cap, learning=self.learning_type)
+
             t.set_description(f'Best = {curr.fitness()}, Avg = {curr_average}, Mutation rate: {self.running_mutation_rate}')
 
             if curr == 0:
-                # print('stopped at:', i)
                 break
-            # if i - last_gen_improvement + 1 == self.running_temp_change:
-            #     self.running_mutation_rate += self.mutation_rate
-            #     self.running_temp_change += self.temp_change
-            #     print(i, last_gen_improvement, self.running_mutation_rate)
-            #     last_gen_improvement = i
         if self.learning_type == 'darwinian':
-            return (sorted(self.population, reverse=self.min_max == 'max')[0].optimization_action_2(learning=self.learning_type, steps=self.learning_cap),
+            return (sorted(self.population, reverse=self.min_max == 'max')[0].optimization_action(learning=self.learning_type, steps=self.learning_cap),
                     sorted(self.population, reverse=self.min_max == 'max')[0].fitness())
         return sorted(self.population, reverse=self.min_max == 'max')[0], sorted(self.population, reverse=self.min_max == 'max')[0].fitness()
 
 
 # couple of tests will delete later
-size = 5
-ga = GeneticAlgorithm(MagicSquareProblem, problem_args={'size': size}, elitism=2, crossover_points=1,
+size = 8
+ga = GeneticAlgorithm(MagicSquareProblem, problem_args={'size': size}, elitism=2, crossover_points=4,
                       mutation_rate=0.05,
-                      learning_type='darwinian',
-                      # learning_type='lamarkian',
-                      learning_cap=size,
+                      # learning_type='darwinian',
+                      learning_type='lamarkian',
+                      learning_cap=1,
                       population_seeds=np.arange(42, 142), pop_size=100, seed=32)
 print(ga.play(max_steps=500))
 
@@ -504,85 +501,77 @@ print(ga.play(max_steps=500))
 #             print(arr[np.ix_([i, (i + 1) % 4], [j, (j - 1) % 4])])
 # print(arr.argmin())
 # print(np.unravel_index(arr.argmax(), arr.shape))
+# 0,1,2,3
+# 0,1,2,3,4,5,6,7
+# def generate_magic_square(size):
+#     # square = np.arange(1, size**2+1).reshape((size, size))
+#     square = np.array([[ 1,  7,  9, 16],
+#      [15, 14,  6,  3],
+#      [ 8,  2, 13, 10],
+#      [11, 12,  5,  4]])
+#     # print(square)
+#     for i in range(size//4):
+#         temp = square[:, i + size//2].copy()
+#         square[:, i + size//2] = square[:, size - i - 1].copy()
+#         square[:, size - i - 1] = temp.copy()
+#     print(square)
+#
+#     for i in range(size//4):
+#         temp = square[i + size//2, :].copy()
+#         square[i + size//2, :] = square[size - i - 1, :].copy()
+#         square[size - i - 1, :] = temp.copy()
+#     print(square)
+#     for i in range(size):
+#         for j in range(size):
+#             if i % 2 == 0 and j % 2 == 1 and i < size/2:
+#                 temp = square[i, j]
+#                 square[i, j] = square[(i + size//2) % size, (j + size//2) % size]
+#                 square[(i + size//2) % size, (j + size//2) % size] = temp
+#             if i % 2 == 1 and j % 2 == 1 and i < size/2:
+#                 temp = square[i, j]
+#                 square[i, j] = square[(i + size //2) % size, j]
+#                 square[(i + size //2) % size, j] = temp
+#             if i % 2 == 1 and j % 2 == 0 and j < size/2:
+#                 temp = square[i, j]
+#                 square[i, j] = square[i, (j + size//2) % size]
+#                 square[i, (j + size//2) % size] = temp
+#     return square
+# indices = list(itertools.product(range(8), repeat=2))
+# print(indices)
+# print(len(indices))
+# print(len([i for i in itertools.combinations(indices, 2)]))
+# def extract_2x2_wraparound_blocks(arr):
+#     H, W = arr.shape
+#     assert H == W, "Matrix must be square"
+#
+#     # Get all top-left corners of 2x2 blocks
+#     row_idx = np.arange(H).reshape(H, 1)
+#     col_idx = np.arange(W).reshape(1, W)
+#
+#     # Compute 2x2 block indices with wraparound
+#     r0 = row_idx
+#     r1 = (row_idx + 1) % H
+#     c0 = col_idx
+#     c1 = (col_idx + 1) % W
+#
+#     # Use advanced indexing to gather all 2x2 blocks
+#     top_left     = arr[r0, c0]
+#     top_right    = arr[r0, c1]
+#     bottom_left  = arr[r1, c0]
+#     bottom_right = arr[r1, c1]
+#
+#     # Stack into shape (H, W, 2, 2)
+#     blocks = np.stack([
+#         np.stack([top_left, top_right], axis=-1),
+#         np.stack([bottom_left, bottom_right], axis=-1)
+#     ], axis=-2)
+#
+#     return blocks  # shape: (H, W, 2, 2)
+# print(arr1)
+# print(extract_2x2_wraparound_blocks(arr1))
+# print(np.abs(extract_2x2_wraparound_blocks(arr1).sum(axis=(2,3)) - 17).sum())
+# print(generate_magic_square(4))
 
 
 
-# try_opt(arr1)
-# try_opt(arr1)
-# try_opt(arr1)
-# try_opt(arr1)
-# try_opt(arr1)
-# try_opt(arr1)
-# try_opt(arr1)
-# try_opt(arr1)
-# try_opt(arr1)
-# try_opt(arr1)
-# try_opt(arr1)
-# try_opt(arr1)
-# stam = np.argwhere(arr1 == arr1.max())
-# print(stam[np.random.choice(len(stam))])
-# a_len = len(a)
-# for i in range(1,4+1):
-#     a[(i-1)*a_len//4:i*a_len//4] = [77*i] * (a_len//4)
-# print(a)
-# 6, 500 gens, mr = 0.01, cop = 1, e = 2, f = 176, expanding mr
-# 6, 500 gens, mr = 0.01, cop = 1, e = 2, f = 130
-# msp = MagicSquareProblem(4, 4)
-# # print(msp)
-# arr = np.array([[ 1,  7,  9, 16],
-#  [15, 14,  6,  3],
-#  [ 8,  2, 13, 10],
-#  [11, 12,  5,  4]])
-# msp.square = arr
-# print(msp)
-# print(msp.fitness())
-# msp.optimization_action_2(4, learning='lamarkian')
-# print(msp)
-# print(msp.fitness())
-# msp.optimization_action_2(4, learning='darwinian')
-# print(msp)
-# print(msp.fitness())
-# msp2 = MagicSquareProblem(4, 52)
-# msp = MagicSquareProblem(4, 42)
-# print(msp)
-# print(msp.fitness())
-# start = time.time()
-# msp.optimization_action_2(steps=7, learning='lamarkian')
-# end = time.time()
-# print(msp)
-# print(msp.fitness())
-# print(end - start)
-# msp.optimization_action_2(steps=1, learning='lamarkian')
-# print(msp)
-# print(msp.fitness())
-# msp.optimization_action_2(steps=1, learning='lamarkian')
-# print(msp)
-# print(msp.fitness())
-# msp.optimization_action_2(steps=1, learning='lamarkian')
-# print(msp)
-# print(msp.fitness())
-# msp.optimization_action_2(steps=1, learning='lamarkian')
-# print(msp)
-# print(msp.fitness())
-# msp.optimization_action_2(steps=1, learning='lamarkian')
-# print(msp)
-# print(msp.fitness())
-# msp.optimization_action_2(steps=1, learning='lamarkian')
-# print(msp)
-# print(msp.fitness())
-# print(msp)
-# print(msp.fitness())
-# msp.optimization_action()
-# print(msp)
-# print(msp.fitness())
-# msp.optimization_action()
-# print(msp)
-# print(msp.fitness())
-# msp.optimization_action()
-# print(msp)
-# print(msp.fitness())
-# print(sum([msp,1]))
-# print(msp.mutation())
-# print(msp.mutation())
-# print(msp.mutation())
-# print(msp.mutation())
+
