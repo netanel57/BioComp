@@ -46,7 +46,6 @@ class MagicSquareGui:
         self.run_button = tk.Button(self.control_frame, text="Run", command=self.run_algorithm)
         self.run_button.grid(row=4, columnspan=2, pady=10)
 
-        # Placeholder for label grid
         self.labels = []
 
     def update__display(self, square):
