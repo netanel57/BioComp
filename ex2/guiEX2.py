@@ -5,12 +5,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from Ex2 import GeneticAlgorithm, MagicSquareProblem
 
-class MagicSquareGui:
+class MagicSquareApp:
     def __init__(self, master):
         self.master = master
         master.title("Magic Square Genetic Algorithm")
 
-        # frame
+        self.running = False
+
+        #  frame
         self.main_frame = tk.Frame(master, padx=10, pady=10)
         self.main_frame.pack()
 
@@ -19,7 +21,6 @@ class MagicSquareGui:
 
         self.control_frame = tk.Frame(self.main_frame)
         self.control_frame.grid(row=0, column=1, padx=10)
-
 
         tk.Label(self.control_frame, text="Square size (N):").grid(row=0, column=0, sticky="w")
         self.entry_n = tk.Entry(self.control_frame)
@@ -44,16 +45,18 @@ class MagicSquareGui:
         self.variant_combo.grid(row=3, column=1)
 
         self.run_button = tk.Button(self.control_frame, text="Run", command=self.run_algorithm)
-        self.run_button.grid(row=4, columnspan=2, pady=10)
+        self.run_button.grid(row=4, column=0, columnspan=2, pady=(10, 2))
+
+        self.stop_button = tk.Button(self.control_frame, text="Stop", command=self.stop_algorithm)
+        self.stop_button.grid(row=5, column=0, columnspan=2, pady=(2, 2))
+
+        self.reset_button = tk.Button(self.control_frame, text="Reset", command=self.reset_ui)
+        self.reset_button.grid(row=6, column=0, columnspan=2, pady=(2, 10))
 
         self.labels = []
 
-    def update__display(self, square):
-        for row in self.labels:
-            for label in row:
-                label.destroy()
-        self.labels = []
-
+    def update_square_display(self, square):
+        self.clear_display()
         n = square.shape[0]
         for i in range(n):
             row_labels = []
@@ -65,8 +68,17 @@ class MagicSquareGui:
             self.labels.append(row_labels)
         self.master.update_idletasks()
 
+    def clear_display(self):
+        for row in self.labels:
+            for label in row:
+                label.destroy()
+        self.labels = []
+
     def run_algorithm(self):
         try:
+            self.running = True
+            self.clear_display()
+
             n = int(self.entry_n.get())
             generations = int(self.entry_gen.get())
             mutation_rate = float(self.entry_mut.get())
@@ -93,32 +105,52 @@ class MagicSquareGui:
                 pop_size=100,
                 seed=32
             )
+
             best_fitness = float('inf')
             best_individual = None
 
             for gen in range(generations):
+                if not self.running:
+                    print("Algorithm stopped by user.")
+                    return
+
                 ga.population = ga.learning_step(ga.population)
                 ga.population = ga.generation_step(ga.population)
                 curr = min(ga.population)
                 if curr.fitness() < best_fitness:
                     best_fitness = curr.fitness()
                     best_individual = curr
-                    self.update__display(best_individual.square)
+                    self.update_square_display(best_individual.square)
                 self.master.update()
 
-            fig, ax = plt.subplots()
-            ax.set_title(f"Best Fitness: {best_fitness}")
-            ax.axis('off')
-            table = ax.table(cellText=best_individual.square, loc='center', cellLoc='center')
-            table.scale(1, 2)
-            plt.show()
+            if best_individual:
+                fig, ax = plt.subplots()
+                ax.set_title(f"Best Fitness: {best_fitness}")
+                ax.axis('off')
+                table = ax.table(cellText=best_individual.square, loc='center', cellLoc='center')
+                table.scale(1, 2)
+                plt.show()
 
         except Exception as e:
             import traceback
             traceback.print_exc()
             print(f"Error: {e}")
 
+    def stop_algorithm(self):
+        self.running = False
+
+    def reset_ui(self):
+        self.running = False
+        self.clear_display()
+        self.entry_n.delete(0, tk.END)
+        self.entry_n.insert(0, "5")
+        self.entry_gen.delete(0, tk.END)
+        self.entry_gen.insert(0, "500")
+        self.entry_mut.delete(0, tk.END)
+        self.entry_mut.insert(0, "0.05")
+        self.variant_combo.current(0)
+
 if __name__ == "__main__":
     root = tk.Tk()
-    app = MagicSquareGui(root)
+    app = MagicSquareApp(root)
     root.mainloop()
