@@ -1,7 +1,6 @@
 import copy
 import time
 from abc import ABC
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -36,14 +35,18 @@ class GeneticAlgorithmProblem(metaclass=abc.ABCMeta):
 
 
 class MagicSquareProblem(GeneticAlgorithmProblem):
-    def __init__(self, size, seed=None):
+    def __init__(self, size, seed=None, square=None, mode="standard"):
         # we might not need min and max value
         super().__init__(seed=seed, min_max='min', min_value=0, max_value=(size**3) * (size**2 + 1) / 2)
         self.size = size
+        self.mode = mode
         self.sub_constant = size**2 + 1
         self.sub_square_constant = 2 * self.sub_constant
         self.constant = size * self.sub_constant / 2
-        self.square = self.random.permutation(range(1, size*size + 1)).reshape((size, size))
+        if square is not None:
+            self.square = square
+        else:
+            self.square = self.random.permutation(range(1, size * size + 1)).reshape((size, size))
         self.computed_fitness = None
 
     def fitness(self):
@@ -59,11 +62,11 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
         diag1_abs = abs(diag1.sum() - self.constant)
         diag2_abs = abs(diag2.sum() - self.constant)
 
-        if self.size % 4 != 0:
+        if self.mode == "standard":
             f = sum([cols_abs, rows_abs, diag1_abs, diag2_abs])
             self.computed_fitness = f
             return f
-        else:
+        elif self.mode == "most_perfect":
             # gets pairs on major diagonals
             pairs1 = sum([abs(diag1[i::self.size//2].sum() - self.sub_constant) for i in range(self.size//2)])
             pairs2 = sum([abs(diag2[i::self.size//2].sum() - self.sub_constant) for i in range(self.size//2)])
@@ -479,14 +482,16 @@ class GeneticAlgorithm:
 
 
 # couple of tests will delete later
-size = 8
-ga = GeneticAlgorithm(MagicSquareProblem, problem_args={'size': size}, elitism=2, crossover_points=4,
-                      mutation_rate=0.05,
-                      # learning_type='darwinian',
-                      learning_type='lamarkian',
-                      learning_cap=1,
-                      population_seeds=np.arange(42, 142), pop_size=100, seed=32)
-print(ga.play(max_steps=500))
+if __name__ == "__main__":
+    size = 8
+    ga = GeneticAlgorithm(MagicSquareProblem, problem_args={'size': size}, elitism=2, crossover_points=4,
+                          mutation_rate=0.05,
+                          # learning_type='darwinian',
+                          learning_type='lamarkian',
+                          learning_cap=1,
+                          population_seeds=np.arange(42, 142), pop_size=100, seed=32)
+    print(ga.play(max_steps=500))
+
 
 # a = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
 # arr1 = np.array(a).reshape((4,4))

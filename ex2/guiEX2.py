@@ -8,11 +8,11 @@ from Ex2 import GeneticAlgorithm, MagicSquareProblem
 class MagicSquareApp:
     def __init__(self, master):
         self.master = master
-        master.title("Magic Square Genetic Algorithm")   #woho name
+        master.title("Magic Square Genetic Algorithm")  # woho name
 
         self.running = False
 
-        #  frame, all the buttons and let's hope it looks nice
+        # Main container
         self.main_frame = tk.Frame(master, padx=10, pady=10)
         self.main_frame.pack()
 
@@ -20,32 +20,51 @@ class MagicSquareApp:
         self.square_frame.grid(row=0, column=0, padx=10)
 
         self.control_frame = tk.Frame(self.main_frame)
-        self.control_frame.grid(row=0, column=1, padx=10)
+        self.control_frame.grid(row=0, column=1, padx=10, sticky="n")
 
-        tk.Label(self.control_frame, text="Square size (N):").grid(row=0, column=0, sticky="w")
+        # --- Inputs ---
+        row_counter = 0
+
+        tk.Label(self.control_frame, text="Square size (N):").grid(row=row_counter, column=0, sticky="w")
         self.entry_n = tk.Entry(self.control_frame)
         self.entry_n.insert(0, "5")
-        self.entry_n.grid(row=0, column=1)
+        self.entry_n.grid(row=row_counter, column=1)
+        row_counter += 1
 
-        tk.Label(self.control_frame, text="Generations:").grid(row=1, column=0, sticky="w")
+        tk.Label(self.control_frame, text="Generations:").grid(row=row_counter, column=0, sticky="w")
         self.entry_gen = tk.Entry(self.control_frame)
         self.entry_gen.insert(0, "500")
-        self.entry_gen.grid(row=1, column=1)
+        self.entry_gen.grid(row=row_counter, column=1)
+        row_counter += 1
 
-        tk.Label(self.control_frame, text="Mutation rate:").grid(row=2, column=0, sticky="w")
+        tk.Label(self.control_frame, text="Mutation rate:").grid(row=row_counter, column=0, sticky="w")
         self.entry_mut = tk.Entry(self.control_frame)
         self.entry_mut.insert(0, "0.05")
-        self.entry_mut.grid(row=2, column=1)
+        self.entry_mut.grid(row=row_counter, column=1)
+        row_counter += 1
 
-        tk.Label(self.control_frame, text="Algorithm variant:").grid(row=3, column=0, sticky="w")
+        #Square Type Selectio
+        tk.Label(self.control_frame, text="Square type:").grid(row=row_counter, column=0, sticky="w")
+        self.square_type_var = tk.StringVar(value="standard")
+        radio_standard = tk.Radiobutton(self.control_frame, text="Standard", variable=self.square_type_var, value="standard")
+        radio_perfect = tk.Radiobutton(self.control_frame, text="Most Perfect", variable=self.square_type_var, value="most_perfect")
+        radio_standard.grid(row=row_counter, column=1, sticky="w")
+        row_counter += 1
+        radio_perfect.grid(row=row_counter, column=1, sticky="w")
+        row_counter += 1
+
+        # evolution Type Selection
+        tk.Label(self.control_frame, text="Evolution type:").grid(row=row_counter, column=0, sticky="w")
         self.variant_var = tk.StringVar()
         self.variant_combo = ttk.Combobox(self.control_frame, textvariable=self.variant_var)
-        self.variant_combo["values"] = ["standard", "darwinian", "lamarckian"]
+        self.variant_combo["values"] = ["No additional constraints", "darwinian", "lamarckian"]
         self.variant_combo.current(0)
-        self.variant_combo.grid(row=3, column=1)
+        self.variant_combo.grid(row=row_counter, column=1)
+        row_counter += 1
 
+        # --- Buttons ---
         button_frame = tk.Frame(self.control_frame)
-        button_frame.grid(row=4, column=0, columnspan=2, pady=(10, 10))
+        button_frame.grid(row=row_counter, column=0, columnspan=2, pady=(10, 10))
 
         self.run_button = tk.Button(button_frame, text="Run", command=self.run_algorithm)
         self.run_button.pack(side=tk.LEFT, padx=5)
@@ -57,6 +76,7 @@ class MagicSquareApp:
         self.reset_button.pack(side=tk.LEFT, padx=5)
 
         self.labels = []
+
     # it might look stuck, but it is what it is;
     def update_square_display(self, square):
         self.clear_display()
@@ -85,20 +105,25 @@ class MagicSquareApp:
             n = int(self.entry_n.get())
             generations = int(self.entry_gen.get())
             mutation_rate = float(self.entry_mut.get())
+            square_mode = self.square_type_var.get()
             variant = self.variant_var.get()
 
-            if variant == "standard":
-                learning_type = None
-            elif variant == "darwinian":
+            if variant == "darwinian":
                 learning_type = "darwinian"
             elif variant == "lamarckian":
                 learning_type = "lamarkian"
             else:
                 learning_type = None
 
+            # Determine square type
+            if variant == "most_perfect":
+                square_mode = "most_perfect"
+            else:
+                square_mode = "standard"
+
             ga = GeneticAlgorithm(
                 MagicSquareProblem,
-                problem_args={'size': n},
+                problem_args={'size': n, 'mode': square_mode},
                 elitism=2,
                 crossover_points=4,
                 mutation_rate=mutation_rate,
