@@ -12,7 +12,7 @@ class MagicSquareApp:
 
         self.running = False
 
-        # Main container
+        # Main
         self.main_frame = tk.Frame(master, padx=10, pady=10)
         self.main_frame.pack()
 
@@ -53,7 +53,6 @@ class MagicSquareApp:
         radio_perfect.grid(row=row_counter, column=1, sticky="w")
         row_counter += 1
 
-        # evolution Type Selection
         tk.Label(self.control_frame, text="Evolution type:").grid(row=row_counter, column=0, sticky="w")
         self.variant_var = tk.StringVar()
         self.variant_combo = ttk.Combobox(self.control_frame, textvariable=self.variant_var)
@@ -62,7 +61,6 @@ class MagicSquareApp:
         self.variant_combo.grid(row=row_counter, column=1)
         row_counter += 1
 
-        # --- Buttons ---
         button_frame = tk.Frame(self.control_frame)
         button_frame.grid(row=row_counter, column=0, columnspan=2, pady=(10, 10))
 
