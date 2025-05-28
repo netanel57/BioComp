@@ -44,14 +44,17 @@ class MagicSquareApp:
         self.variant_combo.current(0)
         self.variant_combo.grid(row=3, column=1)
 
-        self.run_button = tk.Button(self.control_frame, text="Run", command=self.run_algorithm)
-        self.run_button.grid(row=4, column=0, columnspan=2, pady=(10, 2))
+        button_frame = tk.Frame(self.control_frame)
+        button_frame.grid(row=4, column=0, columnspan=2, pady=(10, 10))
 
-        self.stop_button = tk.Button(self.control_frame, text="Stop", command=self.stop_algorithm)
-        self.stop_button.grid(row=5, column=0, columnspan=2, pady=(2, 2))
+        self.run_button = tk.Button(button_frame, text="Run", command=self.run_algorithm)
+        self.run_button.pack(side=tk.LEFT, padx=5)
 
-        self.reset_button = tk.Button(self.control_frame, text="Reset", command=self.reset_ui)
-        self.reset_button.grid(row=6, column=0, columnspan=2, pady=(2, 10))
+        self.stop_button = tk.Button(button_frame, text="Stop", command=self.stop_algorithm)
+        self.stop_button.pack(side=tk.LEFT, padx=5)
+
+        self.reset_button = tk.Button(button_frame, text="Reset", command=self.reset_ui)
+        self.reset_button.pack(side=tk.LEFT, padx=5)
 
         self.labels = []
     # it might look stuck, but it is what it is;
