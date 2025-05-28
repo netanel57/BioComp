@@ -8,11 +8,11 @@ from Ex2 import GeneticAlgorithm, MagicSquareProblem
 class MagicSquareApp:
     def __init__(self, master):
         self.master = master
-        master.title("Magic Square Genetic Algorithm")
+        master.title("Magic Square Genetic Algorithm")   #woho name
 
         self.running = False
 
-        #  frame
+        #  frame, all the buttons and let's hope it looks nice
         self.main_frame = tk.Frame(master, padx=10, pady=10)
         self.main_frame.pack()
 
@@ -54,7 +54,7 @@ class MagicSquareApp:
         self.reset_button.grid(row=6, column=0, columnspan=2, pady=(2, 10))
 
         self.labels = []
-
+    # it might look stuck, but it is what it is;
     def update_square_display(self, square):
         self.clear_display()
         n = square.shape[0]
@@ -67,7 +67,7 @@ class MagicSquareApp:
                 row_labels.append(label)
             self.labels.append(row_labels)
         self.master.update_idletasks()
-
+  #if reset
     def clear_display(self):
         for row in self.labels:
             for label in row:
@@ -111,7 +111,6 @@ class MagicSquareApp:
 
             for gen in range(generations):
                 if not self.running:
-                    print("Algorithm stopped by user.")
                     return
 
                 ga.population = ga.learning_step(ga.population)
