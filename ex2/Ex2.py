@@ -186,7 +186,7 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
 
         return blocks
 
-    def optimization_action(self, steps=1, learning='lamarkian'):
+    def optimization_action(self, steps=1, learning='lamarckian'):
         # OK SO LET'S CHOOSE RANDOM K INSTEAD OF ALL THE PAIRS
         best_score = self.fitness()
         best_square = self.square.copy()
@@ -217,14 +217,14 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
 
             if not changed:
                 break
-        if learning == 'lamarkian':
+        if learning == 'lamarckian':
             self.square = best_square
         elif learning == 'darwinian':
             self.square = true_old_square
         self.computed_fitness = best_score
         return self
 
-    # def optimization_action_2(self, steps=1, learning='lamarkian'):
+    # def optimization_action_2(self, steps=1, learning='lamarckian'):
     #     # TODO: need to optimize this to have most-perfect squares not be so slow
     #     best_score = self.fitness()
     #     best_square = self.square.copy()
@@ -323,7 +323,7 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
     #         #     best_score = score
     #         #     changed = True
     #         #     best_square = candidate.copy()
-    #     if learning == 'lamarkian':
+    #     if learning == 'lamarckian':
     #         self.square = best_square
     #     elif learning == 'darwinian':
     #         self.square = true_old_square
@@ -447,7 +447,7 @@ class GeneticAlgorithm:
         return offspring
 
     def learning_step(self, population):
-        if self.learning_type == "lamarkian":
+        if self.learning_type == "lamarckian":
             return [
                 p.optimization_action(steps=self.learning_cap, learning=self.learning_type)
                 for p in population
@@ -527,7 +527,7 @@ class GeneticAlgorithm:
                 best_after_learning.fitness()
             )
 
-            # If lamarkian just return best individual and its fitness
+            # If lamarckian just return best individual and its fitness
         best_final = sorted(self.population, reverse=(self.min_max == 'max'))[0]
         return best_final, best_final.fitness()
 
@@ -537,7 +537,7 @@ if __name__ == "__main__":
     ga = GeneticAlgorithm(MagicSquareProblem, problem_args={'size': size}, elitism=2, crossover_points=4,
                           mutation_rate=0.05,
                           # learning_type='darwinian',
-                          learning_type='lamarkian',
+                          learning_type='lamarckian',
                           learning_cap=1,
                           population_seeds=np.arange(42, 142), pop_size=100, seed=32)
     print(ga.play(max_steps=500))
