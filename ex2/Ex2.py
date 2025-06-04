@@ -79,52 +79,47 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
             self.computed_fitness = f
             return f
 
+    def _to_inversion_vector(self, perm):
+        n = len(perm)
+        inv = np.zeros(n, dtype=int)
+        for i in range(n):
+            inv[i] = np.sum(perm[i] > perm[i + 1:])
+        return inv
+
+    def _from_inversion_vector(self, inv):
+        n = len(inv)
+        pos = list(range(1, n + 1))
+        square = np.empty(n, dtype=int)
+        for i in range(n):
+            square[i] = pos.pop(inv[i])
+        return square
+
     def crossover(self, other, crossover_points=1):
-        # cross over we defined as in the lecture with multiple crossover points,
-        # while fixing only the values from the other parent to make it valid
+        """Perform crossover using inversion vectors."""
         assert self.square.shape == other.square.shape, "need to be same shape."
         self.computed_fitness = None
         self.random.set_state(self.random_state)
-        flatten_square = self.square.flatten()
-        other_flatten_square = other.square.flatten()
-        # generating crossover points
-        points = np.sort(self.random.choice(range(1, self.square.size), size=crossover_points, replace=False))
+
+        p1 = self._to_inversion_vector(self.square.flatten())
+        p2 = self._to_inversion_vector(other.square.flatten())
+
+        points = np.sort(
+            self.random.choice(range(1, self.square.size), size=crossover_points, replace=False)
+        )
         points = np.concatenate(([0], points, [self.square.size]))
-        # choosing whether to use the prime parent first or second
         choice = self.random.choice(['first', 'second'])
-        result_flatten_square = np.empty_like(flatten_square)
-        place_parent_1 = np.empty_like(flatten_square)
-        # loop on the crossover points and use the correct parent
+
+        child_inv = np.empty_like(p1)
         for i in range(len(points) - 1):
             start, end = points[i], points[i + 1]
             if (i % 2 == 0 and choice == 'first') or (i % 2 == 1 and choice == 'second'):
-                result_flatten_square[start:end] = flatten_square[start:end]
-                place_parent_1[start:end] = True
-            elif (i % 2 == 1 and choice == 'first') or (i % 2 == 0 and choice == 'second'):
-                result_flatten_square[start:end] = other_flatten_square[start:end]
-                place_parent_1[start:end] = False
-
-        unique_elements = set(np.arange(1, self.square.size + 1))
-        seen = set()
-        duplicates = list()
-        dup_dict = dict()
-        # look for duplicates from the other parent
-        for i, val in enumerate(result_flatten_square):
-            if val not in seen:
-                if not place_parent_1[i]:
-                    dup_dict[val] = i
-                seen.add(val)
-            elif place_parent_1[i]:
-                duplicates.append(dup_dict[val])
+                child_inv[start:end] = p1[start:end]
             else:
-                duplicates.append(i)
-        # get all missing values shuffle them and input them in the duplicate locations
-        missing = list(unique_elements - seen)
-        self.random.shuffle(missing)
-        result_flatten_square[duplicates] = missing
-        self.square = result_flatten_square.reshape((self.size, self.size))
-        self.random_state = self.random.get_state()
+                child_inv[start:end] = p2[start:end]
 
+        child_flat = self._from_inversion_vector(child_inv)
+        self.square = child_flat.reshape((self.size, self.size))
+        self.random_state = self.random.get_state()
         return self
 
     def mutation(self, mutation_rate=0.05):
