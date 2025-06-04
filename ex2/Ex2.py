@@ -403,6 +403,7 @@ class GeneticAlgorithm:
         self.problem = problem
         if problem_args is None:
             problem_args = {}
+        # store args so that all algorithm stages use the same configuration
         self.problem_args = problem_args
         self.min_max = problem(**self.problem_args).min_max
         self.elitism = elitism
@@ -501,6 +502,7 @@ class GeneticAlgorithm:
                 best_individual=min(self.population)
                 new_randoms=[]
                 for _ in range(replace_count):
+                    # create new individuals with the stored problem arguments
                     new_rand = self.problem(**self.problem_args, seed=None)
                     new_randoms.append(new_rand)
                  # replace the worst replace_counindividuals with these new randoms
