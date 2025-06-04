@@ -482,7 +482,7 @@ class GeneticAlgorithm:
             curr_fitness = curr_best.fitness()
             curr_average = sum(ind.fitness() for ind in self.population) / self.pop_size
             # print(i - last_gen_improvement)
-            if curr_fitness > min_f:
+            if curr_fitness < min_f:
                 min_f = curr_fitness
                 last_gen_improvement = i
                 self.running_mutation_rate = self.mutation_rate
