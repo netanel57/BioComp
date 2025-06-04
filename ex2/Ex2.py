@@ -459,6 +459,7 @@ class GeneticAlgorithm:
 
     def play(self, max_steps=100):
         # TODO: create a procedure that deals with premature convergence
+
         min_f = min(self.population).fitness()
         t = tqdm.trange(max_steps, desc="Result = ")
         self.running_mutation_rate = self.mutation_rate
@@ -477,29 +478,55 @@ class GeneticAlgorithm:
             # -------------------------------------------
             self.population = self.generation_step(self.population)
 
-            curr = min(self.population)
-            curr_average = sum(self.population) / self.pop_size
+            curr_best = min(self.population)
+            curr_fitness = curr_best.fitness()
+            curr_average = sum(ind.fitness() for ind in self.population) / self.pop_size
             # print(i - last_gen_improvement)
-            if min_f > curr.fitness():
-                min_f = curr.fitness()
+            if curr_fitness > min_f:
+                min_f = curr_fitness
                 last_gen_improvement = i
                 self.running_mutation_rate = self.mutation_rate
 
             elif i - last_gen_improvement >= 25:
-                self.running_mutation_rate = self.mutation_rate
+                #insert diversity, if we go above 25 gens without improvement
+                #we will replace the worst 10% let's say\
+                replace_part=0.1
+                replace_count=max(1,int(replace_part*self.pop_size))
+                #sort population by fitness
+                self.population.sort(key=lambda ind: ind.fitness(), reverse=True)
+
+                best_individual=min(self.population)
+                new_randoms=[]
+                for _ in range(replace_count):
+                    new_rand = self.problem(**self.problem_args, seed=None)
+                    new_randoms.append(new_rand)
+                 # replace the worst replace_counindividuals with these new randoms
+                for idx in range(replace_count):
+                    self.population[idx] = new_randoms[idx]
+                    # always re append the best individual so not lose it
+                self.population[-1] = best_individual
                 last_gen_improvement = i
-            elif i - last_gen_improvement >= 20:
-                self.running_mutation_rate = 10 * self.mutation_rate
+                self.running_mutation_rate = self.mutation_rate
+            t.set_description(
+                f"Best = {curr_fitness:.4f}, Avg = {curr_average:.4f}, "
+                f"Mutation = {self.running_mutation_rate:.4g}"
+            )
 
-            t.set_description(f'Best = {curr.fitness()}, Avg = {curr_average}, Mutation rate: {self.running_mutation_rate}')
-
-            if curr == 0:
+            if curr_fitness == 0:
                 break
         if self.learning_type == 'darwinian':
-            return (sorted(self.population, reverse=self.min_max == 'max')[0].optimization_action(learning=self.learning_type, steps=self.learning_cap),
-                    sorted(self.population, reverse=self.min_max == 'max')[0].fitness())
-        return sorted(self.population, reverse=self.min_max == 'max')[0], sorted(self.population, reverse=self.min_max == 'max')[0].fitness()
+            best_after_learning = sorted(self.population, reverse=(self.min_max == 'max'))[0]
+            return (
+                best_after_learning.optimization_action(
+                    learning=self.learning_type,
+                    steps=self.learning_cap
+                ),
+                best_after_learning.fitness()
+            )
 
+            # If lamarkian just return best individual and its fitness
+        best_final = sorted(self.population, reverse=(self.min_max == 'max'))[0]
+        return best_final, best_final.fitness()
 
 # couple of tests will delete later
 if __name__ == "__main__":
