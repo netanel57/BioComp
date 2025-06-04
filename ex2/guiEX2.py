@@ -119,7 +119,7 @@ class MagicSquareApp:
             if variant == "darwinian":
                 learning_type = "darwinian"
             elif variant == "lamarckian":
-                learning_type = "lamarkian"
+                learning_type = "lamarckian"
             else:
                 learning_type = None
 
