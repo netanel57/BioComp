@@ -401,14 +401,17 @@ class GeneticAlgorithm:
                  pop_size=100, population_split=4, population_seeds=None, seed=None):
         self.pop_size = pop_size
         self.problem = problem
-        self.min_max = problem(**problem_args).min_max
+        if problem_args is None:
+            problem_args = {}
+        self.problem_args = problem_args
+        self.min_max = problem(**self.problem_args).min_max
         self.elitism = elitism
         self.selection_method = selection_method
         self.population_seeds = population_seeds
         if not self.population_seeds is None:
-            self.population = [self.problem(**problem_args, seed=s) for s in self.population_seeds]
+            self.population = [self.problem(**self.problem_args, seed=s) for s in self.population_seeds]
         else:
-            self.population = [self.problem(**problem_args, seed=None) for s in range(self.pop_size)]
+            self.population = [self.problem(**self.problem_args, seed=None) for s in range(self.pop_size)]
         self.learning_type = learning_type
         self.learning_cap = learning_cap
         self.crossover_points = crossover_points
