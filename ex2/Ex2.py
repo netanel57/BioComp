@@ -140,11 +140,13 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
         if mutators.size % 2 == 1:
             mutators_l = mutators.tolist()
             if mutators.size != self.square.size:
-                next = rand_n.flatten()[np.where(rand_n.flatten() >= mutation_rate)[0]].argmin()
-                mutators_l.append(next)
+                candidates = np.where(rand_n.flatten() >= mutation_rate)[0]
+                next_idx = candidates[rand_n.flatten()[candidates].argmin()]
+                mutators_l.append(next_idx)
             elif mutators.size == self.square.size:
-                next = rand_n.flatten()[np.where(rand_n.flatten() < mutation_rate)[0]].argmax()
-                mutators_l.remove(next)
+                candidates = np.where(rand_n.flatten() < mutation_rate)[0]
+                next_idx = candidates[rand_n.flatten()[candidates].argmax()]
+                mutators_l.remove(next_idx)
             mutators = np.array(mutators_l)
 
         # shuffle indexes to swap every pair
