@@ -187,28 +187,36 @@ class MagicSquareProblem(GeneticAlgorithmProblem):
         return blocks
 
     def optimization_action(self, steps=1, learning='lamarkian'):
-        # TODO: need to optimize this to have most-perfect squares not be so slow
+        # OK SO LET'S CHOOSE RANDOM K INSTEAD OF ALL THE PAIRS
         best_score = self.fitness()
         best_square = self.square.copy()
         true_old_square = self.square.copy()
+        K = self.size * self.size
         indices = list(itertools.product(range(self.size), repeat=2))
-        k = 0
-        changed = True
-        while changed and k < steps:
-            changed = False
-            k += 1
-            old_square = best_square.copy()
-            for (i1, j1), (i2, j2) in itertools.combinations(indices, 2):
-                candidate = old_square.copy()
-                # Swap two values
+        rng = self.random
+        for _ in range(steps):
+            changed = False #changed=improved
+            chosen = rng.choice(len(indices), size=K, replace=False)
+            for idx in chosen:
+                i1, j1 = indices[idx]
+                i2, j2 = rng.randint(0, self.size), rng.randint(0, self.size)
+                while i2 == i1 and j2 == j1:
+                    i2, j2 = rng.randint(0, self.size), rng.randint(0, self.size)
+
+                #SWAPP
+                candidate = best_square.copy()
                 candidate[i1, j1], candidate[i2, j2] = candidate[i2, j2], candidate[i1, j1]
                 self.square = candidate
                 self.computed_fitness = None
-                score = self.fitness()
-                if score < best_score:
-                    changed = True
-                    best_score = score
+                new_score = self.fitness()
+
+                if new_score < best_score:
+                    best_score = new_score
                     best_square = candidate.copy()
+                    changed= True
+
+            if not changed:
+                break
         if learning == 'lamarkian':
             self.square = best_square
         elif learning == 'darwinian':
@@ -410,10 +418,15 @@ class GeneticAlgorithm:
         self.random_state = self.random.get_state()
         self.population_split = population_split
 
-    def generation_step(self, population):
+    def generation_step(self, population,fitness_list=None):
         new_population = list()
         sorted_population = sorted(population, reverse=self.min_max == 'max')
         sorted_population_fitness = [p.fitness() for p in sorted_population]
+        if fitness_list is not None:
+            sorted_idx = sorted(range(len(population)),
+                                key=lambda i: fitness_list[i],
+                                reverse=(self.min_max == 'max'))
+            sorted_population = [population[i] for i in sorted_idx]
         if self.elitism != 0:
             for i in range(self.elitism):
                 new_population.append(sorted_population[i])
@@ -431,11 +444,18 @@ class GeneticAlgorithm:
         return offspring
 
     def learning_step(self, population):
-        if self.learning_type:
-            res_population = [p.optimization_action(steps=self.learning_cap, learning=self.learning_type) for p in population]
-        else:
-            res_population = [p.optimization_action(steps=0, learning='') for p in population]
-        return res_population
+        if self.learning_type == "lamarkian":
+            return [
+                p.optimization_action(steps=self.learning_cap, learning=self.learning_type)
+                for p in population
+            ]
+
+        if self.learning_type == "darwinian":
+            self._darwinian_fitness = [
+                p.optimization_action(steps=self.learning_cap, learning=self.learning_type).fitness()
+                for p in population
+            ]
+        return population
 
     def play(self, max_steps=100):
         # TODO: create a procedure that deals with premature convergence

@@ -4,6 +4,9 @@ from tkinter import ttk
 import matplotlib.pyplot as plt
 import numpy as np
 from Ex2 import GeneticAlgorithm, MagicSquareProblem
+import tkinter.messagebox as messagebox
+
+
 
 class MagicSquareApp:
     def __init__(self, master):
@@ -76,18 +79,25 @@ class MagicSquareApp:
         self.labels = []
 
     # it might look stuck, but it is what it is;
-    def update_square_display(self, square):
+    def update_square_display(self, square,solved=False):
         self.clear_display()
         n = square.shape[0]
         for i in range(n):
             row_labels = []
             for j in range(n):
                 value = square[i][j]
-                label = tk.Label(self.square_frame, text=str(value), width=4, height=2, borderwidth=1, relief="solid", font=("Courier", 12))
+                color = "green" if solved else "black"
+                label = tk.Label(
+                    self.square_frame,
+                    text=str(value),
+                    width=4, height=2,
+                    borderwidth=1, relief="solid",
+                    font=("Courier", 12),
+                    fg=color
+                )
                 label.grid(row=i, column=j, padx=1, pady=1)
                 row_labels.append(label)
             self.labels.append(row_labels)
-        self.master.update_idletasks()
   #if reset
     def clear_display(self):
         for row in self.labels:
@@ -155,11 +165,14 @@ class MagicSquareApp:
                 table = ax.table(cellText=best_individual.square, loc='center', cellLoc='center')
                 table.scale(1, 2)
                 plt.show()
+                messagebox.showinfo("Done", "Algorithm finished running.")
+
 
         except Exception as e:
             import traceback
             traceback.print_exc()
             print(f"Error: {e}")
+
 
     def stop_algorithm(self):
         self.running = False
